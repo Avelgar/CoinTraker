@@ -12,4 +12,17 @@ document.addEventListener('click', function(event) {
     }
 });
 
+document.querySelector('.arrow').addEventListener('click', function(e) {
+    e.preventDefault();
+    document.querySelector('#next-section').scrollIntoView({ 
+        behavior: 'smooth' 
+    });
+});
+
+document.querySelector('.learn-more-button').addEventListener('click', function(event) {
+    event.preventDefault();
+    document.querySelector('#advantages').scrollIntoView({
+        behavior: 'smooth'
+    });
+});
 
