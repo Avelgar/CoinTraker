@@ -1,0 +1,171 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: white;
+    color: black;
+}
+
+a{
+    text-decoration: none;
+    color: #9e9e9e;
+    margin: 15px;
+}
+
+a:hover{
+    color: black;
+    cursor: pointer;
+}
+
+h1, h2, p {
+    margin: 0;
+}
+
+header {
+    position: sticky; /* Добавлено свойство fixed */
+    top: 0; /* Прикрепляем к верхней части экрана */
+    left: 0; /* Прикрепляем к левому краю */
+    right: 0; /* Прикрепляем к правому краю */
+    background-color: white;
+    color: black;
+    padding: 20px;
+    text-align: center;
+    font-size: 1.2em;
+    padding: 26px 40px;
+    z-index: 5; /* Устанавливаем z-index, чтобы заголовок был выше других элементов */
+}
+
+
+.header-content {
+    position: sticky;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.logo {
+    font-size: 1.7em;
+    font-weight: bold;
+}
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 200px;
+    height: 100%;
+    background-color: white;
+    color: black;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+    padding-top: 20px;
+    opacity: 0;
+    transform: translateX(-100%);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+    z-index: 6;
+}
+
+.sidebar.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+}
+
+
+.menu-button{
+    display: none;
+}
+
+
+main {
+    background-color: white;
+}
+
+.background-section {
+    position: relative;
+    background-image: url('assets/main.jpg');
+    background-size: cover;
+    background-position: center;
+    height: 100vh; /* Высота секции */
+    display: flex;
+    justify-content: center;
+    /* align-items: center; */
+    text-align: center;
+}
+
+.main-elemets {
+    position: relative;
+    z-index: 1; /* Устанавливаем выше фона */
+    color: white; /* Цвет текста для лучшей читаемости */
+}
+
+.main-img {
+    display: none; /* Скрываем оригинальное изображение */
+}
+
+.main-big-text{
+    font-size: 3.5em;
+}
+
+.main-small-text{
+    font-size: 2em;
+}
+
+footer {
+    text-align: center;
+    padding: 10px 0;
+    background-color: white;
+    color: black;
+}
+
+
+
+.dark-theme {
+    background-color: black;
+    color: white;
+}
+
+.dark-theme header{
+    background-color: black;
+    color: white;
+}
+
+.dark-theme main{
+    background-color: black;
+}
+
+.dark-theme footer{
+    background-color: black;
+    color: white;
+}
+
+.dark-theme a:hover{
+    color: white;
+}
+
+.dark-theme .sidebar{
+    box-shadow: 2px 0 5px rgba(255, 255, 255, 0.5);
+    background-color: black;
+    color: white;
+}
+
+
+@media screen and (max-width: 745px) {
+    header{
+        padding: 18px 40px;
+    }
+
+    .buttons {
+        display: none;
+    }
+
+    .menu-button {
+        display: block;
+    }
+
+    .sidebar.active {
+        display: block;
+        transform: translateX(0);
+    }
+}
