@@ -8,7 +8,6 @@ body {
     background-color: #ffffff;
     color: black;
 }
-
 a {
     text-decoration: none;
     color: #818181;
@@ -35,6 +34,7 @@ header {
     text-align: center;
     font-size: 1.2em;
     z-index: 5;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);   
 }
 
 .header-content {
@@ -78,42 +78,47 @@ header {
 }
 
 main {
-    background-color: #dde3ff;
+    background-color: #ffffff;
 }
 
 .background-section {
-    background-color:black;
-    height: 90vh;
+    background-image: url('assets/6197033.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    height: 92vh;
     display: flex;
     justify-content: center;
-    align-items: center;
     text-align: center;
 }
 
+
 .main-elements {
-    z-index: 1;
-    color: white; 
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    color: white;
 }
 
 .main-big-text {
-    font-size: 3.5em;
+    padding-top:30px ;
+    font-size: 4em;
+    margin-bottom: auto;
 }
-
-.main-small-text {
-    font-size: 2em;
-}
-
 .arrow {
+    align-self: center;
+    width: fit-content;
     font-size: 10em;
     transition: transform 0.3s;
+    color:#44f4cb;
 }
 
 .arrow:hover {
-    color: white;
-    transform: scale(1.1);
+    color:#2b987f;
 }
 
 .info-section {
+    height: 92vh;
     padding: 40px;
     padding-top: 60px;
     padding-bottom: 60px;
@@ -135,8 +140,14 @@ main {
 .image-item {
     width: 100%;
     max-width: 600px;
-    margin: 0 2.5%;
+    margin: 0 30px;
     border-radius: 8px;
+}
+
+.image-item:hover {
+    cursor: pointer;
+    border: 1px solid #00a2ff;
+    box-shadow: 0px 0 5px rgba(0, 174, 255, 1);
 }
 
 .learn-more-button {
@@ -156,7 +167,7 @@ main {
     font-size: 2em;
     padding: 40px;
     text-align: center;
-    background-color: #ffffff   ;
+    background-color: #dde3ff;
 }
 
 .advantages-content {
@@ -182,7 +193,7 @@ main {
 
 
 .register-button-container {
-    background-color: #ffffff;
+    background-color: #dde3ff;
     text-align: center;
     margin-bottom: 20px;
 }
@@ -206,8 +217,8 @@ main {
 
 footer {
     text-align: center;
-    padding: 10px 0;
-    background-color: #dde3ff;
+    padding-bottom: 10px;
+    background-color: #ffffff;
     color: black;
     font-size: large;
 }
@@ -241,9 +252,11 @@ footer {
     background-color: black;
     color: white;
 }
-
+.dark-theme .arrow:hover {
+    color:#2b987f;
+}
 .dark-theme .advantages-section {
-    background-color: black;
+    background-color: #18214d;
     color: white;
 }
 
@@ -251,12 +264,16 @@ footer {
     color: white;
 }
 
+.dark-theme .register-button-container {
+    background-color: #18214d;
+}   
+
 @media screen and (max-width: 1350px) {
     .background-section {
-        height: 40vh;
+        height: 70vh;
     }
     .main-big-text {
-        font-size: 2.5em;
+        font-size: 3em;
     }
     .main-small-text {
         font-size: 1.5em;
@@ -267,13 +284,13 @@ footer {
     .image-item {
         max-width: 300px; /* Максимальная ширина для изображений */
     }
-    
+    .info-section{
+        height: 70vh;
+        min-height: fit-content;
+    }
 }
 
 @media screen and (max-width: 745px) {
-    .advantages-content {
-        display: block;
-    }
     header {
         padding: 18px 40px;
     }
@@ -291,19 +308,51 @@ footer {
         transform: translateX(0);
     }
     .background-section {
-        height: 30vh;
+        height: 60vh;
     }
     .main-big-text {
-        font-size: 1.5em;
+        font-size: 3em;
     }
     .main-small-text {
-        font-size: 1em;
+        font-size: 1.5em;
     }
     .arrow {
-        font-size: 5em;
+        font-size: 7em;
+    }
+    .images {
+        display: block; /* Изменено */
+        text-align: center; /* Центрируем содержимое */
     }
 
-    .images {
-        display: block;
+    .image-item {
+        width: 100%; /* Ширина 100% для изображения */
+        max-width: 600px; /* Максимальная ширина */
+        margin: 10px auto; /* Центрируем изображения */
+        display: block; /* Каждый элемент как блок */
+    }
+
+    .info-section {
+        height: 60vh;
+        text-align: center;
+    }
+
+    .advantages-content {
+        display: block; /* Изменяем на блочный стиль для вертикального расположения */
+        text-align: center; /* Центрируем текст */
+    }
+
+    .advantage-item {
+        width: 100%; /* Устанавливаем ширину 100% для карточек */
+        margin: 20px 0; /* Отступы сверху и снизу для карточек */
+    }
+
+    .image-item-2 {
+        width: 80%; /* Устанавливаем ширину изображений на 80% */
+        max-width: 400px; /* Максимальная ширина для изображений */
+        margin: 10px auto; /* Центрируем изображения */
+    }
+
+    .advantages-section {
+        padding: 20px; /* Уменьшаем отступы для адаптивности */
     }
 }
