@@ -17,4 +17,3 @@ themeToggles.forEach(button => {
 
 const savedTheme = localStorage.getItem('theme') || 'light';
 setTheme(savedTheme);
-

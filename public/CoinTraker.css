@@ -1,5 +1,6 @@
 html {
     scroll-padding-top: 80px;
+    scroll-behavior: smooth;
 }
 
 body {
@@ -72,6 +73,115 @@ header {
     transform: translateX(0);
     pointer-events: auto;
 }
+
+.modal {
+    background-color: rgba(0, 0, 0, 0.4);
+    height: 100%;
+    left: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 7;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    visibility: hidden;
+}
+
+.modal-content {
+    height: fit-content;
+    background-color: #fff;
+    color: #000000;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 40px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+}
+
+form {
+    display: grid;
+    grid-row-gap: 10px;
+}
+
+.close {
+    float: right;
+    font-size: 30px;
+    font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+    text-decoration: none;
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    /* color: #333; */
+    text-align: center;
+
+}
+
+.modal-content p{
+    text-align: center;
+}
+
+.modal-content label {
+    margin-top: 15px;
+    /* color: #555; */
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 12px 15px;
+    margin-top: 5px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+.modal-content input:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px #0056b3;
+}
+
+.modal-content button {
+    margin: 10px auto 0 auto;
+    padding: 12px 20px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
+}
+
+.modal-content button:hover {
+    background-color: #fff;
+    color: #0056b3;
+    border: 2px solid #0056b3;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.success-message,
+.error-message {
+    display: none;
+    margin:5px;
+    text-align: center;
+    color: red;
+    font-weight: bold;
+}
+
+.success-message {
+    color: green;
+}
+
 
 .menu-button {
     display: none;
@@ -266,7 +376,13 @@ footer {
 
 .dark-theme .register-button-container {
     background-color: #18214d;
-}   
+}
+
+.dark-theme .modal-content {
+    background-color: #18214d;
+    color: #ffffff;
+    box-shadow: 0 4px 16px rgba(0, 174, 255, 1);
+}
 
 @media screen and (max-width: 1350px) {
     .background-section {
@@ -282,7 +398,7 @@ footer {
         font-size: 7em;
     }
     .image-item {
-        max-width: 300px; /* Максимальная ширина для изображений */
+        max-width: 300px;
     }
     .info-section{
         height: 70vh;
@@ -291,6 +407,10 @@ footer {
 }
 
 @media screen and (max-width: 745px) {
+    h2{
+        font-size: 1.4em;
+    }
+
     header {
         padding: 18px 40px;
     }
@@ -337,22 +457,28 @@ footer {
     }
 
     .advantages-content {
-        display: block; /* Изменяем на блочный стиль для вертикального расположения */
-        text-align: center; /* Центрируем текст */
+        display: block;
+        text-align: center;
     }
 
     .advantage-item {
-        width: 100%; /* Устанавливаем ширину 100% для карточек */
-        margin: 20px 0; /* Отступы сверху и снизу для карточек */
+        width: 100%;
+        margin: 20px 0;
     }
 
     .image-item-2 {
-        width: 80%; /* Устанавливаем ширину изображений на 80% */
-        max-width: 400px; /* Максимальная ширина для изображений */
-        margin: 10px auto; /* Центрируем изображения */
+        width: 80%;
+        max-width: 400px;
+        margin: 10px auto; 
     }
 
     .advantages-section {
-        padding: 20px; /* Уменьшаем отступы для адаптивности */
+        padding: 20px;
     }
+
+    .register-button {
+        padding: 12px 24px;
+        font-size: 20px;
+    }
+    
 }
