@@ -122,9 +122,8 @@ form {
 
 .modal-content h2 {
     margin-top: 0;
-    /* color: #333; */
     text-align: center;
-
+    font-size: 28px;
 }
 
 .modal-content p{
@@ -133,11 +132,9 @@ form {
 
 .modal-content label {
     margin-top: 15px;
-    /* color: #555; */
 }
 
 .modal-content input {
-    width: 100%;
     padding: 12px 15px;
     margin-top: 5px;
     border: 1px solid #ddd;

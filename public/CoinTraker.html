@@ -9,14 +9,14 @@
         <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
     </head>
     <body>
-        <div id="app">
+        <div id="app"> 
             <header>
                 <div class="header-content">
                     <div class="logo">CoinTracker</div>
                     <nav class="buttons">
                         <a class="themeToggle">Сменить тему</a>
-                        <a class="openLoginForm">Войти</a>
-                        <a href="#" @click.prevent="openModal" >Зарегистрироваться</a>
+                        <a href="#" @click.prevent="openLogInModal">Войти</a>
+                        <a href="#" @click.prevent="openSignUpModal" >Зарегистрироваться</a>
                     </nav>
                     <a id="menuToggle" class="menu-button">Меню</a>
                 </div>
@@ -25,8 +25,8 @@
             <aside id="sidebar" class="sidebar">
                 <nav>
                     <a class="themeToggle">Сменить тему</a>
-                    <a class="openLoginForm">Войти</a>
-                    <a href="#" @click.prevent="openModal">Зарегистрироваться</a>
+                    <a href="#" @click.prevent="openLogInModal">Войти</a>
+                    <a href="#" @click.prevent="openSignUpModal">Зарегистрироваться</a>
                 </nav>
             </aside>
             <main>
@@ -42,8 +42,8 @@
                         <h2>Инвестируйте уверенно с CoinTracker.</h2>
                         <p>Доступ к исчерпывающей информации о криптомонетах и профессиональные инструменты для инвестиций</p>
                         <div class="images">
-                            <img src="assets/image1.jpg" alt="Картинка 1" class="image-item" @click="openModal">
-                            <img src="assets/image2.jpg" alt="Картинка 2" class="image-item" @click="openModal">
+                            <img src="assets/image1.jpg" alt="Картинка 1" class="image-item" @click="openSignUpModal">
+                            <img src="assets/image2.jpg" alt="Картинка 2" class="image-item" @click="openSignUpModal">
                         </div>
                         <a href="#advantages" class="learn-more-button">Узнать больше</a>
                     </div>
@@ -71,31 +71,69 @@
                 </section>
 
                 <div class="register-button-container">
-                    <a class="register-button" @click="openModal">Зарегистрироваться</a>
+                    <a class="register-button" @click="openSignUpModal">Зарегистрироваться</a>
                 </div>
-
-                <div v-if="isModalVisible" class="modal" @click="closeModal">
+                <div v-if="isSignUpModalOpen" class="modal" @click="closeModal">
                     <div class="modal-content" @click.stop>
                         <span class="close" @click="closeModal">&times;</span>
                         <h2>Зарегистрироваться в CoinTracker</h2>
-                        <p class="with-email">С помощью электронной почты</p>
-                        <form id="SignUpForm" @submit.prevent="submitForm">
+                        <p>С помощью электронной почты</p>
+                        <form id="SignUpForm" @submit.prevent="submitSignUpForm">
                             <label for="login">Логин</label>
-                            <input type="text" id="login" name="login" required>
+                            <input id="SignUpLogin" required>
             
                             <label for="email">Электронная почта</label>
-                            <input type="email" id="email" name="email" required>
+                            <input type = "email" id="SignUpEmail" required>
             
                             <label for="password">Пароль</label>
-                            <input type="password" id="password" name="password" required>
+                            <input type="password" id="SignUpPassword" required>
             
                             <label for="password2">Подтвердите пароль</label>
-                            <input type="password" id="password2" name="password" required>
+                            <input type="password" id="SignUpPassword2" required>
             
                             <button type="submit">Зарегистрироваться</button>
                         </form>
                     </div>
                 </div>
+
+                <!-- <div v-if="isLogInModalOpen" class="modal" @click="closeModal"> 
+                    <div class="modal-content" @click.stop>
+                        <span class="close" @click="closeModal">&times;</span>
+                        <h2>Войти в CoinTracker</h2>
+                        <form id="LogInForm" @submit.prevent="submitLogInForm">
+                            <label for="login">Электронная почта/Логин</label>
+                            <input id="LogInLogin" required>
+            
+                            <label for="password">Пароль</label>
+                            <input type="password" id="LogInPassword" required>
+            
+                            <button type="submit">Войти</button>
+                        </form>
+                    </div>
+                </div> -->
+
+                <div v-if="isLogInModalOpen" class="modal" @click="closeModal"> 
+                    <!-- Отображает модальное окно только если isLogInModalOpen равно true; закрывает окно при клике вне содержимого -->
+                    
+                    <div class="modal-content" @click.stop>
+                        <!-- Содержимое модального окна; предотвращает закрытие при клике внутри этого блока -->
+                        
+                        <span class="close" @click="closeModal">&times;</span>
+                        <!-- Кнопка закрытия модального окна; вызывает метод closeModal при клике -->
+                        
+                        <h2>Войти в CoinTracker</h2>
+                        <form id="LogInForm" @submit.prevent="submitLogInForm">
+                            <!-- Форма для входа; предотвращает стандартное поведение отправки формы и вызывает submitLogInForm -->
+
+                            <label for="login">Электронная почта/Логин</label>
+                            <input id="LogInLogin" required>
+                            <label for="password">Пароль</label>
+                            <input type="password" id="LogInPassword" required>
+                            <button type="submit">Войти</button>
+                        </form>
+                    </div>
+                </div>
+                
             </main>
             <footer>
                 <p>&copy; 2024 CoinTracker. Все права защищены.</p>

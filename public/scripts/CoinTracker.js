@@ -19,24 +19,42 @@ new Vue({
     
     el: '#app',
     data: {
-        isModalVisible: false
+        isSignUpModalOpen: false,
+        isLogInModalOpen: false
     },
     methods: {
-        openModal() {
-            console.log("Открытие модального окна");
-            this.isModalVisible = true;
-        },
         closeModal() {
             console.log("Закрытие модального окна");
-            this.isModalVisible = false;
+            this.isSignUpModalOpen = false;
+            this.isLogInModalOpen = false;
         },
-        submitForm() {
-            console.log("Форма отправлена");
+        openSignUpModal() {
+            console.log("Открытие модального окна регистрации");
+            this.isSignUpModalOpen = true;
+        },
+        submitSignUpForm() {
+            console.log("Форма регистрации отправлена");
+            this.closeModal();
+        },
+        openLogInModal(){
+            console.log("Открытие модального окна авторизации");
+            this.isLogInModalOpen = true;
+        },
+        submitLogInForm() {
+            console.log("Форма авторизации отправлена");
             this.closeModal();
         }
     },
     watch: {
-        isModalVisible(newValue) {
+        isSignUpModalOpen(newValue) {
+            this.$nextTick(() => {
+                const modal = document.querySelector('.modal');
+                if (modal) {
+                    modal.style.visibility = newValue ? 'visible' : 'hidden'; 
+                }
+            });
+        },
+        isLogInModalOpen(newValue) {
             this.$nextTick(() => {
                 const modal = document.querySelector('.modal');
                 if (modal) {
