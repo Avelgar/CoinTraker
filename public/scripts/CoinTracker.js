@@ -33,8 +33,31 @@ new Vue({
             this.isSignUpModalOpen = true;
         },
         submitSignUpForm() {
-            console.log("Форма регистрации отправлена");
-            this.closeModal();
+            const login = document.getElementById('SignUpLogin').value;
+            const email = document.getElementById('SignUpEmail').value;
+            const password = document.getElementById('SignUpPassword').value;
+            const password2 = document.getElementById('SignUpPassword2').value;
+            
+            
+            fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    login: login,
+                    email: email,
+                    password: password,
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Успех:', data);
+                this.closeModal();
+            })
+            .catch((error) => {
+                console.error('Ошибка:', error);
+            });
         },
         openLogInModal(){
             console.log("Открытие модального окна авторизации");
