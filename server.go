@@ -1,20 +1,40 @@
 package main
 
 import (
+    "database/sql"
     "encoding/json"
     "fmt"
-    "io/ioutil"
     "net/http"
     "os"
+
+    _"github.com/jackc/pgx/v4/stdlib"
 )
 
 type User struct {
     Login    string `json:"login"`
     Email    string `json:"email"`
-    Password string `json:"password"` 
+    Password string `json:"password"`
 }
 
-func registerHandler(w http.ResponseWriter, r *http.Request) {
+var db *sql.DB
+
+func init() {
+    var err error
+    // Замените строку подключения на вашу
+    connStr := "postgres://postgres:12345@localhost:5432/cointracker"
+    db, err = sql.Open("pgx", connStr)
+    if err != nil {
+        fmt.Println("DatabaseConnectionError:", err)
+        os.Exit(1)
+    }
+
+    if err = db.Ping(); err != nil {
+        fmt.Println("DatabasePingError:", err)
+        os.Exit(1)
+    }
+}
+
+func SignUp(w http.ResponseWriter, r *http.Request) {
     if r.Method == http.MethodPost {
         var user User
         err := json.NewDecoder(r.Body).Decode(&user)
@@ -23,73 +43,38 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
             return
         }
 
-        users, err := loadUsers()
+        var existingUser  User
+        err = db.QueryRow("SELECT login, email FROM users WHERE login = $1 OR email = $2", user.Login, user.Email).Scan(&existingUser .Login, &existingUser .Email)
+        if err == nil {
+            http.Error(w, "UserExistSignUp", http.StatusConflict)
+            return
+        }
+
+        // Попытка вставки нового пользователя
+        _, err = db.Exec("INSERT INTO users (login, email, password) VALUES ($1, $2, $3)", user.Login, user.Email, user.Password)
         if err != nil {
-            http.Error(w, "Не удалось загрузить пользователей", http.StatusInternalServerError)
+            http.Error(w, "UserCannotBeSignUp", http.StatusInternalServerError)
             return
         }
 
-        for _, existingUser  := range users {
-            if existingUser .Login == user.Login || existingUser .Email == user.Email {
-                http.Error(w, "Пользователь с таким логином или электронной почтой уже существует", http.StatusConflict)
-                return
-            }
-        }
-
-        users = append(users, user)
-
-        if err := saveUsers(users); err != nil {
-            http.Error(w, "Не удалось сохранить пользователя", http.StatusInternalServerError)
-            return
-        }
-
+        // Если все прошло успешно, отправляем сообщение об успешной регистрации
         w.WriteHeader(http.StatusOK)
         json.NewEncoder(w).Encode(map[string]string{"message": "Регистрация успешна!"})
     } else {
-        http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+        http.Error(w, "MethodNotAllowedSignUp", http.StatusMethodNotAllowed)
     }
 }
 
-func loadUsers() ([]User , error) {
-    var users []User   
 
-    file, err := os.Open("users.json")
-    if err != nil {
-        if os.IsNotExist(err) {
-
-            return users, nil
-        }
-        return nil, err
-    }
-    defer file.Close()
-
-    data, err := ioutil.ReadAll(file)
-    if err != nil {
-        return nil, err
-    }
-    err = json.Unmarshal(data, &users)
-    return users, err
-}
-
-func saveUsers(users []User ) error {
-
-    data, err := json.MarshalIndent(users, "", "  ")
-    if err != nil {
-        return err
-    }
-
-    return ioutil.WriteFile("users.json", data, 0644)
-}
 
 func main() {
-
     http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         http.Redirect(w, r, "/public/CoinTracker.html", http.StatusFound)
     })
 
-    http.HandleFunc("/register", registerHandler)
+    http.HandleFunc("/SignUp", SignUp)
 
     fmt.Println("Сервер запущен на http://localhost:8080")
     err := http.ListenAndServe(":8080", nil)

@@ -16,20 +16,30 @@ document.addEventListener('DOMContentLoaded', function() {
    
 
 new Vue({
-    
     el: '#app',
     data: {
         isSignUpModalOpen: false,
         isLogInModalOpen: false
     },
     methods: {
+        showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerText = message;
+
+            document.getElementById('notifications').appendChild(notification);
+            notification.style.display = 'block';
+
+            setTimeout(() => {
+                notification.style.display = 'none';
+                notification.remove();
+            }, 3000);
+        },
         closeModal() {
-            console.log("Закрытие модального окна");
             this.isSignUpModalOpen = false;
             this.isLogInModalOpen = false;
         },
         openSignUpModal() {
-            console.log("Открытие модального окна регистрации");
             this.isSignUpModalOpen = true;
         },
         submitSignUpForm() {
@@ -37,9 +47,13 @@ new Vue({
             const email = document.getElementById('SignUpEmail').value;
             const password = document.getElementById('SignUpPassword').value;
             const password2 = document.getElementById('SignUpPassword2').value;
-            
-            
-            fetch('/register', {
+        
+            if (password !== password2) {
+                this.showNotification('Пароли не совпадают!', 'error');
+                return;
+            }
+        
+            fetch('/SignUp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -50,21 +64,35 @@ new Vue({
                     password: password,
                 }),
             })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Успех:', data);
-                this.closeModal();
+            .then(response => {
+                if (!response.ok) {
+                    // Обработка ошибок на основе статуса ответа
+                    if (response.status === 400) {
+                        return this.showNotification('Некорректные данные. Проверьте введенные данные.', 'error');
+                    } else if (response.status === 409) {
+                        return this.showNotification('Пользователь с таким логином или email уже существует.', 'error');
+                    } else if (response.status === 500) {
+                        return this.showNotification('Ошибка сервера. Попробуйте позже.', 'error');
+                    } else {
+                        return this.showNotification('Неизвестная ошибка. Попробуйте снова.', 'error');
+                    }
+                }
+                else{
+                    this.showNotification('Регистрация прошла успешно!', 'success');
+                    this.closeModal();
+                }
+                return response.json();
             })
             .catch((error) => {
                 console.error('Ошибка:', error);
+                this.showNotification('Ошибка регистрации. Попробуйте еще раз.', 'error');
             });
-        },
-        openLogInModal(){
-            console.log("Открытие модального окна авторизации");
+        },        
+        openLogInModal() {
+            this.closeModal();
             this.isLogInModalOpen = true;
         },
         submitLogInForm() {
-            console.log("Форма авторизации отправлена");
             this.closeModal();
         }
     },
@@ -87,3 +115,4 @@ new Vue({
         }
     }
 });
+

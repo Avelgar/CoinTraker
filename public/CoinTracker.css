@@ -94,7 +94,7 @@ header {
     color: #000000;
     max-height: 80vh;
     overflow-y: auto;
-    padding: 40px;
+    padding: 40px 30px 20px 30px;
     width: 90%;
     max-width: 500px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
@@ -107,6 +107,7 @@ form {
 }
 
 .close {
+    margin-left: 3px;
     float: right;
     font-size: 30px;
     font-weight: bold;
@@ -123,7 +124,7 @@ form {
 .modal-content h2 {
     margin-top: 0;
     text-align: center;
-    font-size: 28px;
+    font-size: 27px;
 }
 
 .modal-content p{
@@ -166,22 +167,35 @@ form {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.success-message,
-.error-message {
-    display: none;
-    margin:5px;
+.modal-content a {
     text-align: center;
-    color: red;
-    font-weight: bold;
 }
-
-.success-message {
-    color: green;
-}
-
 
 .menu-button {
     display: none;
+}
+
+.notifications {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.notification {
+    padding: 10px 20px;
+    margin: 10px 0;
+    border-radius: 5px;
+    color: white;
+    display: none; /* Скрыто по умолчанию */
+}
+
+.notification.success {
+    background-color: #4CAF50; /* Зеленый */
+}
+
+.notification.error {
+    background-color: #F44336; /* Красный */
 }
 
 main {
@@ -198,7 +212,6 @@ main {
     justify-content: center;
     text-align: center;
 }
-
 
 .main-elements {
     display: flex;
@@ -437,15 +450,15 @@ footer {
         font-size: 7em;
     }
     .images {
-        display: block; /* Изменено */
-        text-align: center; /* Центрируем содержимое */
+        display: block;
+        text-align: center;
     }
 
     .image-item {
-        width: 100%; /* Ширина 100% для изображения */
-        max-width: 600px; /* Максимальная ширина */
-        margin: 10px auto; /* Центрируем изображения */
-        display: block; /* Каждый элемент как блок */
+        width: 100%;
+        max-width: 600px;
+        margin: 10px auto;
+        display: block;
     }
 
     .info-section {
