@@ -105,12 +105,14 @@
                         <h2>Войти в CoinTracker</h2>
                         <form id="LogInForm" @submit.prevent="submitLogInForm">
                             <label for="login">Электронная почта/Логин</label>
-                            <input id="LogInLogin" required>
+                            <input id="LogInEmail" required>
             
                             <label for="password">Пароль</label>
                             <input type="password" id="LogInPassword" required>
             
                             <button type="submit">Войти</button>
+
+                            <a href="#" @click.prevent="openPasswordRecoveryModal">Забыли пароль?</a>
                         </form>
                     </div>
                 </div>

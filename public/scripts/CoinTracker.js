@@ -40,6 +40,7 @@ new Vue({
             this.isLogInModalOpen = false;
         },
         openSignUpModal() {
+            this.closeModal();
             this.isSignUpModalOpen = true;
         },
         submitSignUpForm() {
@@ -66,22 +67,22 @@ new Vue({
             })
             .then(response => {
                 if (!response.ok) {
-                    // Обработка ошибок на основе статуса ответа
-                    if (response.status === 400) {
-                        return this.showNotification('Некорректные данные. Проверьте введенные данные.', 'error');
-                    } else if (response.status === 409) {
-                        return this.showNotification('Пользователь с таким логином или email уже существует.', 'error');
-                    } else if (response.status === 500) {
-                        return this.showNotification('Ошибка сервера. Попробуйте позже.', 'error');
-                    } else {
-                        return this.showNotification('Неизвестная ошибка. Попробуйте снова.', 'error');
-                    }
+                    return response.text().then(text => {
+                        if (text.includes('PasswordIsTooWeak')) {
+                            return this.showNotification('Пароль слишком слабый.', 'error');
+                        } else if (text.includes('UserAlreadySignUp')) {
+                            return this.showNotification('Пользователь с таким логином или email уже существует.', 'error');
+                        } else if (text.includes('Bad request')) {
+                            return this.showNotification('Ошибка сервера. Попробуйте позже.', 'error');
+                        } else {
+                            return this.showNotification('Неизвестная ошибка. Попробуйте снова.', 'error');
+                        }
+                    });
                 }
                 else{
                     this.showNotification('Регистрация прошла успешно!', 'success');
                     this.closeModal();
                 }
-                return response.json();
             })
             .catch((error) => {
                 console.error('Ошибка:', error);
@@ -91,10 +92,55 @@ new Vue({
         openLogInModal() {
             this.closeModal();
             this.isLogInModalOpen = true;
+
+            const signUpLogin = document.getElementById('SignUpLogin');
+            const signUpEmail = document.getElementById('SignUpEmail');
+            const signUpPassword = document.getElementById('SignUpPassword');
+            const signUpPassword2 = document.getElementById('SignUpPassword2');
+        
+            if (signUpLogin) signUpLogin.value = '';
+            if (signUpEmail) signUpEmail.value = '';
+            if (signUpPassword) signUpPassword.value = '';
+            if (signUpPassword2) signUpPassword2.value = '';
         },
         submitLogInForm() {
-            this.closeModal();
-        }
+            const login = document.getElementById('LogInEmail').value;
+            const password = document.getElementById('LogInPassword').value;
+        
+            fetch('/LogIn', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    login: login,
+                    password: password,
+                }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        if (text.includes('UserNotFound')) {
+                            return this.showNotification('Пользователь не найден.', 'error');
+                        } else if (text.includes('UserIsBanned')) {
+                            return this.showNotification('Пользователь забанен.', 'error');
+                        } else if (text.includes('InvalidCredentials')) {
+                            return this.showNotification('Неверный логин или пароль.', 'error');
+                        } else {
+                            return this.showNotification('Неизвестная ошибка. Попробуйте снова.', 'error');
+                        }
+                    });
+                } else {
+                    this.showNotification('Вход выполнен успешно!', 'success');
+                    this.closeModal();
+                    window.location.href = '/public/User.html';
+                }
+            })
+            .catch((error) => {
+                console.error('Ошибка:', error);
+                this.showNotification('Ошибка входа. Попробуйте еще раз.', 'error');
+            });
+        }        
     },
     watch: {
         isSignUpModalOpen(newValue) {
