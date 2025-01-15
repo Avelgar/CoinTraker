@@ -6,19 +6,23 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-    "strings"
+	"net/smtp"
+	"strings"
+	"time"
 
-    "golang.org/x/crypto/bcrypt"
+	"golang.org/x/crypto/bcrypt"
 	_ "github.com/lib/pq"
 )
 
 type User struct {
-	Login      string `json:"login"`
-	Email      string `json:"email"`
-	Password   string `json:"password"`
-	TelegramID string `json:"telegram_id"`
-	IsBanned   bool   `json:"is_banned"`
-	IsAdmin    bool   `json:"is_admin"`
+	Login              string    `json:"login"`
+	Email              string    `json:"email"`
+	Password           string    `json:"password"`
+	TelegramID         string    `json:"telegram_id"`
+	IsBanned           bool      `json:"is_banned"`
+	IsAdmin            bool      `json:"is_admin"`
+	SignUpToken        string    `json:"sign_up_token"`
+	SignUpTokenDelTime time.Time `json:"sign_up_token_del_time"`
 }
 
 var db *sql.DB
@@ -32,7 +36,32 @@ func initDB() {
 	}
 }
 
-// Функция для проверки сложности пароля
+func sendMessageEmail(email, subject, body string) error {
+	smtpHost := "smtp.yandex.ru"
+	smtpPort := "587"
+	username := "avlegart@yandex.ru"
+	password := "tuzzwwjpckaqfdvh"
+
+	msg := []byte("To: " + email + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"\r\n" +
+		body + "\r\n")
+
+	auth := smtp.PlainAuth("", username, password, smtpHost)
+
+	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, username, []string{email}, msg)
+	if err != nil {
+		return fmt.Errorf("Ошибка при отправке: %w", err)
+	}
+
+	fmt.Println("Сообщение отправлено:", subject)
+	return nil
+}
+
+func generateSignUpToken() string {
+	return fmt.Sprintf("%x", time.Now().UnixNano())
+}
+
 func isPasswordStrong(password string) bool {
 	if len(password) < 8 {
 		return false
@@ -55,7 +84,6 @@ func isPasswordStrong(password string) bool {
 	return hasUpper && hasLower && hasDigit
 }
 
-// Функция для хеширования пароля
 func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(bytes), err
@@ -69,33 +97,107 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Проверка сложности пароля
 	if !isPasswordStrong(user.Password) {
 		http.Error(w, "PasswordIsTooWeak", http.StatusBadRequest)
 		return
 	}
 
-    // Хеширование пароля
 	hashedPassword, err := hashPassword(user.Password)
 	user.Password = hashedPassword
 
-	// Заполнение новых полей по умолчанию
+	user.SignUpToken = generateSignUpToken()
+	user.SignUpTokenDelTime = time.Now().Add(time.Hour)
+
 	user.TelegramID = ""
 	user.IsBanned = false
 	user.IsAdmin = false
 
-	_, err = db.Exec("INSERT INTO users (login, email, password, telegram_id, is_banned, is_admin) VALUES ($1, $2, $3, $4, $5, $6)",
-		user.Login, user.Email, user.Password, user.TelegramID, user.IsBanned, user.IsAdmin)
-	if err != nil {
-		http.Error(w, "UserAlreadySignUp", http.StatusInternalServerError)
+	var existingUser  User
+	err = db.QueryRow("SELECT login, email, sign_up_token FROM users WHERE email = $1", user.Email).Scan(&existingUser .Login, &existingUser .Email, &existingUser .SignUpToken)
+	if err == nil {
+		if existingUser .SignUpToken == "" {
+			http.Error(w, "User AlreadyExistsWithEmailAndNoToken", http.StatusConflict)
+		} else {
+			http.Error(w, "User AlreadyExistsWithEmailAndHasToken", http.StatusConflict)
+		}
 		return
 	}
 
+	err = db.QueryRow("SELECT login, email, sign_up_token FROM users WHERE login = $1", user.Login).Scan(&existingUser .Login, &existingUser .Email, &existingUser .SignUpToken)
+	if err == nil {
+		http.Error(w, "User AlreadyExistsWithLogin", http.StatusConflict)
+		return
+	}
+
+	_, err = db.Exec("INSERT INTO users (login, email, password, telegram_id, is_banned, is_admin, sign_up_token, sign_up_token_del_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		user.Login, user.Email, user.Password, user.TelegramID, user.IsBanned, user.IsAdmin, user.SignUpToken, user.SignUpTokenDelTime)
+	if err != nil {
+		http.Error(w, "User AlreadySignUp", http.StatusInternalServerError)
+		return
+	}
+
+	subject := "Подтверждение регистрации"
+	body := fmt.Sprintf("Пожалуйста, подтвердите вашу регистрацию, перейдя по следующей ссылке: http://localhost:8080/public/CoinTracker.html?token=%s", user.SignUpToken)
+	err = sendMessageEmail(user.Email, subject, body)
+	if err != nil {
+		log.Println("Ошибка при отправке письма:", err)
+	}
+
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
+	json.NewEncoder(w).Encode(map[string]string{"message": "User  registered successfully"})
 }
 
-func LogInHandler(w http.ResponseWriter, r *http.Request) {
+func cleanUpExpiredTokens() {
+	for {
+		time.Sleep(time.Minute)
+
+		_, err := db.Exec("DELETE FROM users WHERE sign_up_token_del_time < NOW() AND sign_up_token IS NOT NULL AND sign_up_token <> ''")
+		if err != nil {
+			log.Println("Ошибка при удалении пользователей с истекшими токенами:", err)
+		} else {
+			log.Println("Удалены пользователи с истекшими токенами.")
+		}
+	}
+}
+
+func checkTokenHandler(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+
+	var user User
+	err := db.QueryRow("SELECT login, email FROM users WHERE sign_up_token = $1 AND sign_up_token_del_time > NOW()", token).Scan(&user.Login, &user.Email)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			json.NewEncoder(w).Encode(map[string]bool{"success": false})
+			return
+		}
+		http.Error(w, "InternalServerError", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+func confirmTokenHandler(w http.ResponseWriter, r *http.Request) {
+	var requestBody struct {
+		Token string `json:"token"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	_, err = db.Exec("UPDATE users SET sign_up_token = '', sign_up_token_del_time = NULL WHERE sign_up_token = $1", requestBody.Token)
+	if err != nil {
+		http.Error(w, "InternalServerError", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func logInHandler(w http.ResponseWriter, r *http.Request) {
 	var user User
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
@@ -103,7 +205,6 @@ func LogInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем пользователя из базы данных по логину или email
 	var storedUser  User
 	var query string
 	if isEmail(user.Login) {
@@ -116,32 +217,28 @@ func LogInHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			http.Error(w, "UserNotFound", http.StatusUnauthorized)
+			http.Error(w, "User NotFound", http.StatusUnauthorized)
 			return
 		}
 		http.Error(w, "InternalServerError", http.StatusInternalServerError)
 		return
 	}
 
-	// Проверяем, забанен ли пользователь
 	if storedUser .IsBanned {
-		http.Error(w, "UserIsBanned", http.StatusForbidden)
+		http.Error(w, "User IsBanned", http.StatusForbidden)
 		return
 	}
 
-	// Проверяем пароль
 	err = bcrypt.CompareHashAndPassword([]byte(storedUser .Password), []byte(user.Password))
 	if err != nil {
 		http.Error(w, "InvalidCredentials", http.StatusUnauthorized)
 		return
 	}
 
-	// Успешный вход
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
 }
 
-// Функция для проверки, является ли строка электронной почтой
 func isEmail(input string) bool {
 	return strings.Contains(input, "@") && strings.Contains(input, ".")
 }
@@ -156,8 +253,22 @@ func main() {
 		http.Redirect(w, r, "/public/CoinTracker.html", http.StatusFound)
 	})
 
+	email := "kirill.tsyganov@gmail.com"
+	subject := "Тестовое письмо"
+	body := "Это тестовое сообщение от почтового бота на Go."
+
+	err := sendMessageEmail(email, subject, body)
+	if err != nil {
+		fmt.Println("Ошибка:", err)
+	}
+
+	http.HandleFunc("/api/checkToken", checkTokenHandler)
+	http.HandleFunc("/api/confirmToken", confirmTokenHandler)
 	http.HandleFunc("/SignUp", registerHandler)
-    http.HandleFunc("/LogIn", LogInHandler)
+	http.HandleFunc("/LogIn", logInHandler)
+
+	go cleanUpExpiredTokens()
+
 	fmt.Println("Сервер запущен на http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

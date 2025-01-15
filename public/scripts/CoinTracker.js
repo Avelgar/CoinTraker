@@ -12,8 +12,53 @@ document.addEventListener('DOMContentLoaded', function() {
             sidebar.classList.remove('active');
         }
     });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+
+    if (token){
+        fetch(`/api/checkToken?token=${token}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Ошибка при проверке токена");
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                fetch(`/api/confirmToken`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ token: token })
+                })
+                .then(res => {
+                    if (res.ok) {
+                        window.location.href = "/public/User.html";
+                    } else {
+                        alert("Не удалось подтвердить токен. Попробуйте снова.");
+                        window.location.href = "/public/CoinTracker.html";
+                    }
+                });
+            } else {
+                alert("Токен просрочен или недействителен.");
+                window.location.href = "/public/CoinTracker.html"; 
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка:", error);
+            alert("Произошла ошибка при проверке токена.");
+            window.location.href = "/public/CoinTracker.html";
+        });
+    }
 });
-   
+
 
 new Vue({
     el: '#app',
@@ -70,8 +115,12 @@ new Vue({
                     return response.text().then(text => {
                         if (text.includes('PasswordIsTooWeak')) {
                             return this.showNotification('Пароль слишком слабый.', 'error');
-                        } else if (text.includes('UserAlreadySignUp')) {
-                            return this.showNotification('Пользователь с таким логином или email уже существует.', 'error');
+                        } else if (text.includes('UserAlreadyExistsWithEmailAndNoToken')) {
+                            return this.showNotification('Пользователь с таким email уже существует.', 'error');
+                        } else if (text.includes('UserAlreadyExistsWithEmailAndHasToken')) {
+                            return this.showNotification('На эту почту уже отправлена ссылка на поддтверждение.', 'error');
+                        } else if (text.includes('UserAlreadyExistsWithLogin')) {
+                            return this.showNotification('Это имя пользователя уже занято', 'error');
                         } else if (text.includes('Bad request')) {
                             return this.showNotification('Ошибка сервера. Попробуйте позже.', 'error');
                         } else {
@@ -80,7 +129,7 @@ new Vue({
                     });
                 }
                 else{
-                    this.showNotification('Регистрация прошла успешно!', 'success');
+                    this.showNotification('Подтвердите аккаунта в своем почтовом ящике!', 'success');
                     this.closeModal();
                 }
             })
