@@ -74,20 +74,26 @@ header {
     pointer-events: auto;
 }
 
-.modal {
+.modal, .modal-capcha {
     background-color: rgba(0, 0, 0, 0.4);
     height: 100%;
     left: 0;
     position: fixed;
     top: 0;
     width: 100%;
-    z-index: 7;
     display: flex;
     justify-content: center;
     align-items: center;
     visibility: hidden;
 }
 
+.modal{
+    z-index: 7;
+}
+
+.modal-capcha{
+    z-index: 8;
+}
 .modal-content {
     height: fit-content;
     background-color: #fff;

@@ -6,6 +6,7 @@
         <title>CoinTracker</title>
         <link rel="stylesheet" href="CoinTracker.css">
         <link type="image/x-icon" href="https://png.klev.club/uploads/posts/2024-05/png-klev-club-cmy7-p-moneti-ikonka-png-13.png" rel="shortcut icon">
+        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
         <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
     </head>
     <body>
@@ -74,9 +75,9 @@
                 <div class="register-button-container">
                     <a class="register-button" @click="openSignUpModal">Зарегистрироваться</a>
                 </div>
-                <div v-if="isSignUpModalOpen" class="modal" @click="closeModal">
+                <div v-if="isSignUpModalOpen" class="modal" @click="closeSignUpModal">
                     <div class="modal-content" @click.stop>
-                        <span class="close" @click="closeModal">&times;</span>
+                        <span class="close" @click="closeSignUpModal">&times;</span>
                         <h2>Зарегистрироваться в CoinTracker</h2>
                         <p>С помощью электронной почты</p>
                         <form id="SignUpForm" @submit.prevent="submitSignUpForm">
@@ -99,20 +100,29 @@
                     </div>
                 </div>
 
-                <div v-if="isLogInModalOpen" class="modal" @click="closeModal"> 
+                <div v-if="isLogInModalOpen" class="modal" @click="closeLogInModal"> 
                     <div class="modal-content" @click.stop>
-                        <span class="close" @click="closeModal">&times;</span>
+                        <span class="close" @click="closeLogInModal">&times;</span>
                         <h2>Войти в CoinTracker</h2>
                         <form id="LogInForm" @submit.prevent="submitLogInForm">
                             <label for="login">Электронная почта/Логин</label>
                             <input id="LogInEmail" required>
-            
                             <label for="password">Пароль</label>
                             <input type="password" id="LogInPassword" required>
-            
                             <button type="submit">Войти</button>
+                            <a href="#" @click.prevent="openCapchaModal">Забыли пароль?</a>
+                        </form>
+                    </div>
+                </div>
+                
 
-                            <a href="#" @click.prevent="openPasswordRecoveryModal">Забыли пароль?</a>
+                <div v-if="isCapchaModalOpen" class="modal-capcha" @click="closeCapchaModal"> 
+                    <div class="modal-content" @click.stop>
+                        <span class="close" @click="closeCapchaModal">&times;</span>
+                        <h2>Пройдите капчу</h2>
+                        <form id="CapchaForm" @submit.prevent="submitCapchaForm">
+                            <div class="g-recaptcha" data-sitekey="6Ld0FY0qAAAAALscFOTJapdG7k_58zZoGU3i_FAv"></div>
+                            <button type="submit">Подтвердить</button>
                         </form>
                     </div>
                 </div>

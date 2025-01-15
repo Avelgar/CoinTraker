@@ -64,7 +64,8 @@ new Vue({
     el: '#app',
     data: {
         isSignUpModalOpen: false,
-        isLogInModalOpen: false
+        isLogInModalOpen: false,
+        isCapchaModalOpen: false
     },
     methods: {
         showNotification(message, type) {
@@ -80,12 +81,7 @@ new Vue({
                 notification.remove();
             }, 3000);
         },
-        closeModal() {
-            this.isSignUpModalOpen = false;
-            this.isLogInModalOpen = false;
-        },
         openSignUpModal() {
-            this.closeModal();
             this.isSignUpModalOpen = true;
         },
         submitSignUpForm() {
@@ -130,18 +126,20 @@ new Vue({
                 }
                 else{
                     this.showNotification('Подтвердите аккаунта в своем почтовом ящике!', 'success');
-                    this.closeModal();
+                    this.closeSignUpModal();
                 }
             })
             .catch((error) => {
                 console.error('Ошибка:', error);
                 this.showNotification('Ошибка регистрации. Попробуйте еще раз.', 'error');
             });
-        },        
+        },
+        closeSignUpModal() {
+            this.isSignUpModalOpen = false;
+        },
         openLogInModal() {
-            this.closeModal();
-            this.isLogInModalOpen = true;
-
+            this.closeSignUpModal(); // Закрываем окно регистрации
+            this.isLogInModalOpen = true; // Открываем окно авторизации
             const signUpLogin = document.getElementById('SignUpLogin');
             const signUpEmail = document.getElementById('SignUpEmail');
             const signUpPassword = document.getElementById('SignUpPassword');
@@ -187,7 +185,7 @@ new Vue({
                     });
                 } else {
                     this.showNotification('Вход выполнен успешно!', 'success');
-                    this.closeModal();
+                    this.closeLogInModal();
                     window.location.href = '/public/User.html';
                 }
             })
@@ -195,7 +193,20 @@ new Vue({
                 console.error('Ошибка:', error);
                 this.showNotification('Ошибка входа. Попробуйте еще раз.', 'error');
             });
-        }        
+        },
+        closeLogInModal(){
+            this.isLogInModalOpen = false;
+        },
+        openCapchaModal() {
+            this.isCapchaModalOpen = true; // Открываем окно капчи
+        },
+        submitCapchaForm() {
+            // Код для обработки капчи
+            this.closeCapchaModal(); // Закрываем окно капчи после подтверждения
+        },
+        closeCapchaModal() {
+            this.isCapchaModalOpen = false;
+        }
     },
     watch: {
         isSignUpModalOpen(newValue) {
@@ -209,6 +220,14 @@ new Vue({
         isLogInModalOpen(newValue) {
             this.$nextTick(() => {
                 const modal = document.querySelector('.modal');
+                if (modal) {
+                    modal.style.visibility = newValue ? 'visible' : 'hidden'; 
+                }
+            });
+        },
+        isCapchaModalOpen(newValue) {
+            this.$nextTick(() => {
+                const modal = document.querySelector('.modal-capcha');
                 if (modal) {
                     modal.style.visibility = newValue ? 'visible' : 'hidden'; 
                 }

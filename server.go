@@ -249,9 +249,6 @@ func logInHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
 }
 
-
-
-
 func isEmail(input string) bool {
 	return strings.Contains(input, "@") && strings.Contains(input, ".")
 }
