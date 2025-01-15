@@ -4,9 +4,9 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>CoinTracker</title>
+        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
         <link rel="stylesheet" href="CoinTracker.css">
         <link type="image/x-icon" href="https://png.klev.club/uploads/posts/2024-05/png-klev-club-cmy7-p-moneti-ikonka-png-13.png" rel="shortcut icon">
-        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
         <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
     </head>
     <body>
@@ -121,7 +121,19 @@
                         <span class="close" @click="closeCapchaModal">&times;</span>
                         <h2>Пройдите капчу</h2>
                         <form id="CapchaForm" @submit.prevent="submitCapchaForm">
-                            <div class="g-recaptcha" data-sitekey="6Ld0FY0qAAAAALscFOTJapdG7k_58zZoGU3i_FAv"></div>
+                            <!-- <div class="g-recaptcha" data-sitekey="6Ld0FY0qAAAAALscFOTJapdG7k_58zZoGU3i_FAv"></div> -->
+                            <button type="submit">Подтвердить</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div v-if="isRecoveryModalOpen" class="modal-capcha" @click="closeRecoveryModal"> 
+                    <div class="modal-content" @click.stop>
+                        <span class="close" @click="closeRecoveryModal">&times;</span>
+                        <h2>Пройдите капчу</h2>
+                        <form id="RecoveryForm" @submit.prevent="submitRecoveryForm">
+                            <label for="login">Электронная почта/Логин</label>
+                            <input id="RecoveryEmail" required>
                             <button type="submit">Подтвердить</button>
                         </form>
                     </div>

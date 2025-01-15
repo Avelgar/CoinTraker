@@ -65,7 +65,8 @@ new Vue({
     data: {
         isSignUpModalOpen: false,
         isLogInModalOpen: false,
-        isCapchaModalOpen: false
+        isCapchaModalOpen: false,
+        isRecoveryModalOpen: false
     },
     methods: {
         showNotification(message, type) {
@@ -201,11 +202,28 @@ new Vue({
             this.isCapchaModalOpen = true; // Открываем окно капчи
         },
         submitCapchaForm() {
-            // Код для обработки капчи
-            this.closeCapchaModal(); // Закрываем окно капчи после подтверждения
+            // if (grecaptcha.getResponse() == ""){
+            //     this.showNotification('Капча не пройдена. Попробуйте еще раз.', 'error');
+            //     grecaptcha.reset();
+            // } else {
+            //     this.closeCapchaModal();
+            //     grecaptcha.reset();
+            // }
+            this.openRecoveryModal();
         },
         closeCapchaModal() {
             this.isCapchaModalOpen = false;
+        },
+        openRecoveryModal(){
+            this.closeCapchaModal();
+            this.isRecoveryModalOpen = true;
+        },
+        submitRecoveryForm(){
+            this.showNotification('Письмо с ссылкой на восстановление пароля отправлено!.', 'success');
+            this.closeRecoveryModal();
+        },
+        closeRecoveryModal(){
+            this.isRecoveryModalOpen = false;
         }
     },
     watch: {
@@ -226,6 +244,14 @@ new Vue({
             });
         },
         isCapchaModalOpen(newValue) {
+            this.$nextTick(() => {
+                const modal = document.querySelector('.modal-capcha');
+                if (modal) {
+                    modal.style.visibility = newValue ? 'visible' : 'hidden'; 
+                }
+            });
+        },
+        isRecoveryModalOpen(newValue) {
             this.$nextTick(() => {
                 const modal = document.querySelector('.modal-capcha');
                 if (modal) {
