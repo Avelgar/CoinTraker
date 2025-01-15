@@ -175,6 +175,12 @@ new Vue({
                             return this.showNotification('Пользователь забанен.', 'error');
                         } else if (text.includes('InvalidCredentials')) {
                             return this.showNotification('Неверный логин или пароль.', 'error');
+                        } else if (text.includes('UserHasToken')) {
+                            return this.showNotification('Аккаунт на подтверждении, проверьте почту.', 'error');
+                        } else if (text.includes('InternalServerError')) {
+                            return this.showNotification('Ошибка сервера!', 'error');
+                        } else if (text.includes('Bad request')) {
+                            return this.showNotification('Плохое соединение!', 'error');
                         } else {
                             return this.showNotification('Неизвестная ошибка. Попробуйте снова.', 'error');
                         }

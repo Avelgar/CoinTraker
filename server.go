@@ -22,7 +22,7 @@ type User struct {
 	IsBanned           bool      `json:"is_banned"`
 	IsAdmin            bool      `json:"is_admin"`
 	SignUpToken        string    `json:"sign_up_token"`
-	SignUpTokenDelTime time.Time `json:"sign_up_token_del_time"`
+	SignUpTokenDelTime *time.Time `json:"sign_up_token_del_time"`
 }
 
 var db *sql.DB
@@ -39,10 +39,11 @@ func initDB() {
 func sendMessageEmail(email, subject, body string) error {
 	smtpHost := "smtp.yandex.ru"
 	smtpPort := "587"
-	username := "avlegart@yandex.ru"
+	username := "avelgart@yandex.ru"
 	password := "tuzzwwjpckaqfdvh"
 
-	msg := []byte("To: " + email + "\r\n" +
+	msg := []byte("From: " + username + "\r\n" +
+		"To: " + email + "\r\n" +
 		"Subject: " + subject + "\r\n" +
 		"\r\n" +
 		body + "\r\n")
@@ -106,7 +107,9 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	user.Password = hashedPassword
 
 	user.SignUpToken = generateSignUpToken()
-	user.SignUpTokenDelTime = time.Now().Add(time.Hour)
+	t := time.Now().Add(time.Hour)
+	user.SignUpTokenDelTime = &t
+
 
 	user.TelegramID = ""
 	user.IsBanned = false
@@ -116,23 +119,23 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow("SELECT login, email, sign_up_token FROM users WHERE email = $1", user.Email).Scan(&existingUser .Login, &existingUser .Email, &existingUser .SignUpToken)
 	if err == nil {
 		if existingUser .SignUpToken == "" {
-			http.Error(w, "User AlreadyExistsWithEmailAndNoToken", http.StatusConflict)
+			http.Error(w, "UserAlreadyExistsWithEmailAndNoToken", http.StatusConflict)
 		} else {
-			http.Error(w, "User AlreadyExistsWithEmailAndHasToken", http.StatusConflict)
+			http.Error(w, "UserAlreadyExistsWithEmailAndHasToken", http.StatusConflict)
 		}
 		return
 	}
 
 	err = db.QueryRow("SELECT login, email, sign_up_token FROM users WHERE login = $1", user.Login).Scan(&existingUser .Login, &existingUser .Email, &existingUser .SignUpToken)
 	if err == nil {
-		http.Error(w, "User AlreadyExistsWithLogin", http.StatusConflict)
+		http.Error(w, "UserAlreadyExistsWithLogin", http.StatusConflict)
 		return
 	}
 
 	_, err = db.Exec("INSERT INTO users (login, email, password, telegram_id, is_banned, is_admin, sign_up_token, sign_up_token_del_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 		user.Login, user.Email, user.Password, user.TelegramID, user.IsBanned, user.IsAdmin, user.SignUpToken, user.SignUpTokenDelTime)
 	if err != nil {
-		http.Error(w, "User AlreadySignUp", http.StatusInternalServerError)
+		http.Error(w, "UserAlreadySignUp", http.StatusInternalServerError)
 		return
 	}
 
@@ -144,7 +147,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "User  registered successfully"})
+	json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
 }
 
 func cleanUpExpiredTokens() {
@@ -208,24 +211,30 @@ func logInHandler(w http.ResponseWriter, r *http.Request) {
 	var storedUser  User
 	var query string
 	if isEmail(user.Login) {
-		query = "SELECT login, email, password, is_banned, is_admin FROM users WHERE email = $1"
-		err = db.QueryRow(query, user.Login).Scan(&storedUser .Login, &storedUser .Email, &storedUser .Password, &storedUser .IsBanned, &storedUser .IsAdmin)
+		query = "SELECT login, email, password, is_banned, is_admin, sign_up_token, sign_up_token_del_time FROM users WHERE email = $1"
+		err = db.QueryRow(query, user.Login).Scan(&storedUser .Login, &storedUser .Email, &storedUser .Password, &storedUser .IsBanned, &storedUser .IsAdmin, &storedUser .SignUpToken, &storedUser .SignUpTokenDelTime)
 	} else {
-		query = "SELECT login, email, password, is_banned, is_admin FROM users WHERE login = $1"
-		err = db.QueryRow(query, user.Login).Scan(&storedUser .Login, &storedUser .Email, &storedUser .Password, &storedUser .IsBanned, &storedUser .IsAdmin)
+		query = "SELECT login, email, password, is_banned, is_admin, sign_up_token, sign_up_token_del_time FROM users WHERE login = $1"
+		err = db.QueryRow(query, user.Login).Scan(&storedUser .Login, &storedUser .Email, &storedUser .Password, &storedUser .IsBanned, &storedUser .IsAdmin, &storedUser .SignUpToken, &storedUser .SignUpTokenDelTime)
 	}
-
+	
 	if err != nil {
 		if err == sql.ErrNoRows {
-			http.Error(w, "User NotFound", http.StatusUnauthorized)
+			http.Error(w, "UserNotFound", http.StatusUnauthorized)
 			return
 		}
 		http.Error(w, "InternalServerError", http.StatusInternalServerError)
 		return
 	}
+	
+	// Проверка на наличие токена
+	if storedUser .SignUpToken != "" && storedUser .SignUpTokenDelTime != nil {
+		http.Error(w, "UserHasToken", http.StatusForbidden)
+		return
+	}	
 
 	if storedUser .IsBanned {
-		http.Error(w, "User IsBanned", http.StatusForbidden)
+		http.Error(w, "UserIsBanned", http.StatusForbidden)
 		return
 	}
 
@@ -235,9 +244,13 @@ func logInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Если токен пустой, пропускаем пользователя
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
 }
+
+
+
 
 func isEmail(input string) bool {
 	return strings.Contains(input, "@") && strings.Contains(input, ".")
@@ -252,15 +265,6 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/public/CoinTracker.html", http.StatusFound)
 	})
-
-	email := "kirill.tsyganov@gmail.com"
-	subject := "Тестовое письмо"
-	body := "Это тестовое сообщение от почтового бота на Go."
-
-	err := sendMessageEmail(email, subject, body)
-	if err != nil {
-		fmt.Println("Ошибка:", err)
-	}
 
 	http.HandleFunc("/api/checkToken", checkTokenHandler)
 	http.HandleFunc("/api/confirmToken", confirmTokenHandler)
