@@ -15,14 +15,16 @@ import (
 )
 
 type User struct {
-	Login              string    `json:"login"`
-	Email              string    `json:"email"`
-	Password           string    `json:"password"`
-	TelegramID         string    `json:"telegram_id"`
-	IsBanned           bool      `json:"is_banned"`
-	IsAdmin            bool      `json:"is_admin"`
-	SignUpToken        string    `json:"sign_up_token"`
-	SignUpTokenDelTime *time.Time `json:"sign_up_token_del_time"`
+	Login              string     `json:"login"`
+	Email              string     `json:"email"`
+	Password           string     `json:"password"`
+	TelegramID         *string    `json:"telegram_id"`
+	IsBanned           bool       `json:"is_banned"`
+	IsAdmin            bool       `json:"is_admin"`
+	SignUpToken        *string    `json:"sign_up_token"`
+	SignUpTokenDelTime *time.Time  `json:"sign_up_token_del_time"`
+	RecoveryToken      *string    `json:"recovery_token"`
+	RecoveryTokenDelTime *time.Time `json:"recovery_token_del_time"`
 }
 
 var db *sql.DB
@@ -106,19 +108,23 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	hashedPassword, err := hashPassword(user.Password)
 	user.Password = hashedPassword
 
-	user.SignUpToken = generateSignUpToken()
+	signUpToken := generateSignUpToken()
+	user.SignUpToken = &signUpToken
 	t := time.Now().Add(time.Hour)
 	user.SignUpTokenDelTime = &t
 
+	// Устанавливаем RecoveryToken и RecoveryTokenDelTime в nil
+	user.RecoveryToken = nil
+	user.RecoveryTokenDelTime = nil
 
-	user.TelegramID = ""
+	user.TelegramID = nil // Устанавливаем TelegramID в nil
 	user.IsBanned = false
 	user.IsAdmin = false
 
 	var existingUser  User
 	err = db.QueryRow("SELECT login, email, sign_up_token FROM users WHERE email = $1", user.Email).Scan(&existingUser .Login, &existingUser .Email, &existingUser .SignUpToken)
 	if err == nil {
-		if existingUser .SignUpToken == "" {
+		if existingUser .SignUpToken == nil {
 			http.Error(w, "UserAlreadyExistsWithEmailAndNoToken", http.StatusConflict)
 		} else {
 			http.Error(w, "UserAlreadyExistsWithEmailAndHasToken", http.StatusConflict)
@@ -132,15 +138,15 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("INSERT INTO users (login, email, password, telegram_id, is_banned, is_admin, sign_up_token, sign_up_token_del_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-		user.Login, user.Email, user.Password, user.TelegramID, user.IsBanned, user.IsAdmin, user.SignUpToken, user.SignUpTokenDelTime)
+	_, err = db.Exec("INSERT INTO users (login, email, password, telegram_id, is_banned, is_admin, sign_up_token, sign_up_token_del_time, recovery_token, recovery_token_del_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+		user.Login, user.Email, user.Password, user.TelegramID, user.IsBanned, user.IsAdmin, user.SignUpToken, user.SignUpTokenDelTime, user.RecoveryToken, user.RecoveryTokenDelTime)
 	if err != nil {
 		http.Error(w, "UserAlreadySignUp", http.StatusInternalServerError)
 		return
 	}
 
 	subject := "Подтверждение регистрации"
-	body := fmt.Sprintf("Пожалуйста, подтвердите вашу регистрацию, перейдя по следующей ссылке: http://localhost:8080/public/CoinTracker.html?token=%s", user.SignUpToken)
+	body := fmt.Sprintf("Пожалуйста, подтвердите вашу регистрацию, перейдя по следующей ссылке: http://localhost:8080/public/CoinTracker.html?token=%s", *user.SignUpToken)
 	err = sendMessageEmail(user.Email, subject, body)
 	if err != nil {
 		log.Println("Ошибка при отправке письма:", err)
@@ -154,11 +160,20 @@ func cleanUpExpiredTokens() {
 	for {
 		time.Sleep(time.Minute)
 
+		// Удаляем пользователей с истекшими токенами регистрации
 		_, err := db.Exec("DELETE FROM users WHERE sign_up_token_del_time < NOW() AND sign_up_token IS NOT NULL AND sign_up_token <> ''")
 		if err != nil {
 			log.Println("Ошибка при удалении пользователей с истекшими токенами:", err)
 		} else {
 			log.Println("Удалены пользователи с истекшими токенами.")
+		}
+
+		// Обнуляем токены восстановления для пользователей с истекшим временем
+		_, err = db.Exec("UPDATE users SET recovery_token = NULL, recovery_token_del_time = NULL WHERE recovery_token_del_time < NOW() AND recovery_token IS NOT NULL AND recovery_token <> ''")
+		if err != nil {
+			log.Println("Ошибка при обнулении токенов восстановления:", err)
+		} else {
+			log.Println("Обнулены токены восстановления для пользователей с истекшим временем.")
 		}
 	}
 }
@@ -191,7 +206,7 @@ func confirmTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("UPDATE users SET sign_up_token = '', sign_up_token_del_time = NULL WHERE sign_up_token = $1", requestBody.Token)
+	_, err = db.Exec("UPDATE users SET sign_up_token = NULL, sign_up_token_del_time = NULL WHERE sign_up_token = $1", requestBody.Token)
 	if err != nil {
 		http.Error(w, "InternalServerError", http.StatusInternalServerError)
 		return
@@ -211,11 +226,11 @@ func logInHandler(w http.ResponseWriter, r *http.Request) {
 	var storedUser  User
 	var query string
 	if isEmail(user.Login) {
-		query = "SELECT login, email, password, is_banned, is_admin, sign_up_token, sign_up_token_del_time FROM users WHERE email = $1"
-		err = db.QueryRow(query, user.Login).Scan(&storedUser .Login, &storedUser .Email, &storedUser .Password, &storedUser .IsBanned, &storedUser .IsAdmin, &storedUser .SignUpToken, &storedUser .SignUpTokenDelTime)
+		query = "SELECT login, email, password, is_banned, is_admin, sign_up_token, sign_up_token_del_time, recovery_token, recovery_token_del_time FROM users WHERE email = $1"
+		err = db.QueryRow(query, user.Login).Scan(&storedUser .Login, &storedUser .Email, &storedUser .Password, &storedUser .IsBanned, &storedUser .IsAdmin, &storedUser .SignUpToken, &storedUser .SignUpTokenDelTime, &storedUser .RecoveryToken, &storedUser .RecoveryTokenDelTime)
 	} else {
-		query = "SELECT login, email, password, is_banned, is_admin, sign_up_token, sign_up_token_del_time FROM users WHERE login = $1"
-		err = db.QueryRow(query, user.Login).Scan(&storedUser .Login, &storedUser .Email, &storedUser .Password, &storedUser .IsBanned, &storedUser .IsAdmin, &storedUser .SignUpToken, &storedUser .SignUpTokenDelTime)
+		query = "SELECT login, email, password, is_banned, is_admin, sign_up_token, sign_up_token_del_time, recovery_token, recovery_token_del_time FROM users WHERE login = $1"
+		err = db.QueryRow(query, user.Login).Scan(&storedUser .Login, &storedUser .Email, &storedUser .Password, &storedUser .IsBanned, &storedUser .IsAdmin, &storedUser .SignUpToken, &storedUser .SignUpTokenDelTime, &storedUser .RecoveryToken, &storedUser .RecoveryTokenDelTime)
 	}
 	
 	if err != nil {
@@ -223,15 +238,21 @@ func logInHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "UserNotFound", http.StatusUnauthorized)
 			return
 		}
+		fmt.Println(err)
 		http.Error(w, "InternalServerError", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Проверка на наличие токена
-	if storedUser .SignUpToken != "" && storedUser .SignUpTokenDelTime != nil {
+	if storedUser .SignUpToken != nil && *storedUser .SignUpToken != "" && storedUser .SignUpTokenDelTime != nil {
 		http.Error(w, "UserHasToken", http.StatusForbidden)
 		return
-	}	
+	}
+
+	if storedUser .RecoveryToken != nil && *storedUser .RecoveryToken != "" && storedUser .RecoveryTokenDelTime != nil {
+		http.Error(w, "UserHasRecoveryToken", http.StatusForbidden)
+		return
+	}
 
 	if storedUser .IsBanned {
 		http.Error(w, "UserIsBanned", http.StatusForbidden)
@@ -253,6 +274,76 @@ func isEmail(input string) bool {
 	return strings.Contains(input, "@") && strings.Contains(input, ".")
 }
 
+func recoveryHandler(w http.ResponseWriter, r *http.Request) {
+	var requestBody struct {
+		Email string `json:"email"`
+	}
+	
+	// Декодируем JSON из тела запроса
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	
+	// Проверяем, существует ли пользователь
+	var user User
+	err = db.QueryRow("SELECT login, email, is_banned, sign_up_token, sign_up_token_del_time, recovery_token, recovery_token_del_time FROM users WHERE email = $1", 
+	requestBody.Email).Scan(&user.Login, &user.Email, &user.IsBanned, &user.SignUpToken, &user.SignUpTokenDelTime, &user.RecoveryToken, &user.RecoveryTokenDelTime)
+	
+	if err == sql.ErrNoRows {
+		http.Error(w, "UserNotFound", http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, "InternalServerError", http.StatusInternalServerError)
+		return
+	}
+	
+	// Проверка на наличие токена регистрации
+	if user.SignUpToken != nil && *user.SignUpToken != "" && user.SignUpTokenDelTime != nil {
+		http.Error(w, "UserHasToken", http.StatusForbidden)
+		return
+	}
+	
+	// Проверка на забаненность пользователя
+	if user.IsBanned {
+		http.Error(w, "UserIsBanned", http.StatusForbidden)
+		return
+	}
+	
+	// Проверка на наличие токена восстановления
+	if user.RecoveryToken != nil && *user.RecoveryToken != "" && user.RecoveryTokenDelTime != nil {
+		http.Error(w, "UserHasRecoveryToken", http.StatusForbidden)
+		return
+	}
+	
+	// Генерация токена восстановления
+	recoveryToken := generateSignUpToken()
+	user.RecoveryToken = &recoveryToken
+	t := time.Now().Add(time.Hour) // Токен действителен 1 час
+	user.RecoveryTokenDelTime = &t
+	
+	// Обновление пользователя с новым токеном
+	_, err = db.Exec("UPDATE users SET recovery_token = $1, recovery_token_del_time = $2 WHERE email = $3", user.RecoveryToken, user.RecoveryTokenDelTime, user.Email)
+	if err != nil {
+		http.Error(w, "InternalServerError", http.StatusInternalServerError)
+		return
+	}
+	
+	// Отправка письма с ссылкой на восстановление пароля
+	subject := "Восстановление пароля"
+	body := fmt.Sprintf("Пожалуйста, восстановите ваш пароль, перейдя по следующей ссылке: http://localhost:8080/public/CoinTracker.html?recovery_token=%s", *user.RecoveryToken)
+	err = sendMessageEmail(user.Email, subject, body)
+	if err != nil {
+		log.Println("Ошибка при отправке письма:", err)
+		http.Error(w, "InternalServerError", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Письмо с ссылкой на восстановление пароля отправлено!"})
+}
+
 func main() {
 	initDB()
 	defer db.Close()
@@ -267,6 +358,7 @@ func main() {
 	http.HandleFunc("/api/confirmToken", confirmTokenHandler)
 	http.HandleFunc("/SignUp", registerHandler)
 	http.HandleFunc("/LogIn", logInHandler)
+	http.HandleFunc("/Recovery", recoveryHandler)
 
 	go cleanUpExpiredTokens()
 

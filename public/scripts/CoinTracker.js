@@ -176,6 +176,8 @@ new Vue({
                             return this.showNotification('Неверный логин или пароль.', 'error');
                         } else if (text.includes('UserHasToken')) {
                             return this.showNotification('Аккаунт на подтверждении, проверьте почту.', 'error');
+                        } else if (text.includes('UserHasRecoveryToken')) {
+                            return this.showNotification('Аккаунт на восстановлении, проверьте почту.', 'error');
                         } else if (text.includes('InternalServerError')) {
                             return this.showNotification('Ошибка сервера!', 'error');
                         } else if (text.includes('Bad request')) {
@@ -219,8 +221,44 @@ new Vue({
             this.isRecoveryModalOpen = true;
         },
         submitRecoveryForm(){
-            this.showNotification('Письмо с ссылкой на восстановление пароля отправлено!.', 'success');
-            this.closeRecoveryModal();
+            const email = document.getElementById('RecoveryEmail').value;
+            fetch('/Recovery', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        if (text.includes('UserNotFound')) {
+                            return this.showNotification('Пользователь не найден.', 'error');
+                        } else if (text.includes('UserIsBanned')) {
+                            return this.showNotification('Пользователь забанен.', 'error');
+                        } else if (text.includes('UserHasToken')) {
+                            return this.showNotification('Аккаунт на подтверждении, проверьте почту.', 'error');
+                        } else if (text.includes('UserHasRecoveryToken')) {
+                            return this.showNotification('Аккаунт на восстановлении, проверьте почту.', 'error');
+                        } else if (text.includes('InternalServerError')) {
+                            return this.showNotification('Ошибка сервера!', 'error');
+                        } else if (text.includes('Bad request')) {
+                            return this.showNotification('Плохое соединение!', 'error');
+                        } else {
+                            return this.showNotification('Неизвестная ошибка. Попробуйте снова.', 'error');
+                        }
+                    });
+                } else {
+                    this.showNotification('Письмо с ссылкой на восстановление пароля отправлено!.', 'success');
+                    this.closeRecoveryModal();
+                }
+            })
+            .catch((error) => {
+                console.error('Ошибка:', error);
+                this.showNotification('Ошибка входа. Попробуйте еще раз.', 'error');
+            });
         },
         closeRecoveryModal(){
             this.isRecoveryModalOpen = false;
