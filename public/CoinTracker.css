@@ -107,6 +107,24 @@ header {
     border-radius: 12px;
 }
 
+.recovery-section{
+    height: 86vh;
+    display: flex;
+    background-color: #dde3ff;
+    color: #000000;
+    justify-content: center;
+}
+
+.content-recovery{
+    padding-top: 100px;
+    max-height: 80vh;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 500px;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
 form {
     display: grid;
     grid-row-gap: 10px;
@@ -127,20 +145,24 @@ form {
     text-decoration: none;
 }
 
+.content-recovery h2,
 .modal-content h2 {
     margin-top: 0;
     text-align: center;
     font-size: 27px;
 }
 
+.content-recovery p,
 .modal-content p{
     text-align: center;
 }
 
+.content-recovery label,
 .modal-content label {
     margin-top: 15px;
 }
 
+.content-recovery input,
 .modal-content input {
     padding: 12px 15px;
     margin-top: 5px;
@@ -149,12 +171,14 @@ form {
     font-size: 16px;
 }
 
+.content-recovery input:focus,
 .modal-content input:focus {
     border-color: #007bff;
     outline: none;
     box-shadow: 0 0 0 2px #0056b3;
 }
 
+.content-recovery button,
 .modal-content button {
     margin: 10px auto 0 auto;
     padding: 12px 20px;
@@ -166,6 +190,7 @@ form {
     transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
 }
 
+.content-recovery button:hover,
 .modal-content button:hover {
     background-color: #fff;
     color: #0056b3;
@@ -403,6 +428,11 @@ footer {
     background-color: #18214d;
     color: #ffffff;
     box-shadow: 0 4px 16px rgba(0, 174, 255, 1);
+}
+
+.dark-theme .recovery-section{
+    background-color: #18214d;
+    color: #ffffff;
 }
 
 @media screen and (max-width: 1350px) {

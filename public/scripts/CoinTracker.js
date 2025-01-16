@@ -16,12 +16,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
 
-    if (token){
-        fetch(`/api/checkToken?token=${token}`, {
-            method: "GET",
+    if (token) {
+        fetch('/api/checkToken', {
+            method: "POST",
             headers: {
                 "Content-Type": "application/json"
-            }
+            },
+            body: JSON.stringify({ token: token })
         })
         .then(response => {
             if (!response.ok) {
@@ -31,21 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             if (data.success) {
-                fetch(`/api/confirmToken`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({ token: token })
-                })
-                .then(res => {
-                    if (res.ok) {
-                        window.location.href = "/public/User.html";
-                    } else {
-                        alert("Не удалось подтвердить токен. Попробуйте снова.");
-                        window.location.href = "/public/CoinTracker.html";
-                    }
-                });
+                window.location.href = "/public/User.html";
             } else {
                 alert("Токен просрочен или недействителен.");
                 window.location.href = "/public/CoinTracker.html"; 
@@ -56,7 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
             alert("Произошла ошибка при проверке токена.");
             window.location.href = "/public/CoinTracker.html";
         });
-    }
+    }    
 });
 
 

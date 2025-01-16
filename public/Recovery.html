@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoinTracker</title>
+    <link rel="stylesheet" href="CoinTracker.css">
+    <link type="image/x-icon" href="https://png.klev.club/uploads/posts/2024-05/png-klev-club-cmy7-p-moneti-ikonka-png-13.png" rel="shortcut icon">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+</head>
+<body>
+    <div id="app"> 
+        <header>
+            <div class="header-content">
+                <div class="logo">CoinTracker</div>
+                <nav class="buttons">
+                    <a class="themeToggle">Сменить тему</a>
+                    <a href="/public/CoinTracker.html" >Назад</a>
+                </nav>
+                <a id="menuToggle" class="menu-button">Меню</a>
+            </div>
+        </header>
+
+        <aside id="sidebar" class="sidebar">
+            <nav>
+                <a class="themeToggle">Сменить тему</a>
+                <a href="/public/CoinTracker.html">Назад</a>
+            </nav>
+        </aside>
+        <div id="notifications" class="notifications"></div>
+        <main>
+            <div class="recovery-section">
+                <div class="content-recovery">
+                    <h2>Смена пароля в CoinTracker</h2>
+                    <form id="RecoveryForm" @submit.prevent="submitRecovery">
+
+                        <label for="password">Пароль</label>
+                        <input type="password" id="RecoveryPassword" required>
+
+                        <label for="password2">Подтвердите пароль</label>
+                        <input type="password" id="RecoveryPassword2" required>
+
+                        <button type="submit">Сменить пароль</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+        <footer>
+            <p>&copy; 2024 CoinTracker. Все права защищены.</p>
+        </footer>
+    </div>
+    <script src="scripts/Recovery.js"></script>
+    <script src="scripts/theme.js"></script>
+</body>
+</html>

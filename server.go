@@ -178,42 +178,38 @@ func cleanUpExpiredTokens() {
 	}
 }
 
-func checkTokenHandler(w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("token")
+func handleCheckToken(w http.ResponseWriter, r *http.Request) {
 
-	var user User
-	err := db.QueryRow("SELECT login, email FROM users WHERE sign_up_token = $1 AND sign_up_token_del_time > NOW()", token).Scan(&user.Login, &user.Email)
+    // Получаем токен из тела запроса
+    var requestData struct {
+        Token string `json:"token"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil || requestData.Token == "" {
+        json.NewEncoder(w).Encode(map[string]string{"error": "NoToken"})
+        return
+    }
 
-	if err != nil {
-		if err == sql.ErrNoRows {
-			json.NewEncoder(w).Encode(map[string]bool{"success": false})
-			return
-		}
-		http.Error(w, "InternalServerError", http.StatusInternalServerError)
-		return
-	}
+    var user User
+    err := db.QueryRow("SELECT login, email FROM users WHERE sign_up_token = $1 AND sign_up_token_del_time > NOW()", requestData.Token).Scan(&user.Login, &user.Email)
 
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+    if err != nil {
+        if err == sql.ErrNoRows {
+            json.NewEncoder(w).Encode(map[string]bool{"success": false})
+            return
+        }
+        http.Error(w, "InternalServerError", http.StatusInternalServerError)
+        return
+    }
+
+    _, err = db.Exec("UPDATE users SET sign_up_token = NULL, sign_up_token_del_time = NULL WHERE sign_up_token = $1", requestData.Token)
+    if err != nil {
+        http.Error(w, "InternalServerError", http.StatusInternalServerError)
+        return
+    }
+
+    json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
-func confirmTokenHandler(w http.ResponseWriter, r *http.Request) {
-	var requestBody struct {
-		Token string `json:"token"`
-	}
-	err := json.NewDecoder(r.Body).Decode(&requestBody)
-	if err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	_, err = db.Exec("UPDATE users SET sign_up_token = NULL, sign_up_token_del_time = NULL WHERE sign_up_token = $1", requestBody.Token)
-	if err != nil {
-		http.Error(w, "InternalServerError", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
 
 func logInHandler(w http.ResponseWriter, r *http.Request) {
 	var user User
@@ -332,7 +328,7 @@ func recoveryHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// Отправка письма с ссылкой на восстановление пароля
 	subject := "Восстановление пароля"
-	body := fmt.Sprintf("Пожалуйста, восстановите ваш пароль, перейдя по следующей ссылке: http://localhost:8080/public/CoinTracker.html?recovery_token=%s", *user.RecoveryToken)
+	body := fmt.Sprintf("Пожалуйста, восстановите ваш пароль, перейдя по следующей ссылке: http://localhost:8080/public/Recovery.html?recovery_token=%s", *user.RecoveryToken)
 	err = sendMessageEmail(user.Email, subject, body)
 	if err != nil {
 		log.Println("Ошибка при отправке письма:", err)
@@ -344,6 +340,94 @@ func recoveryHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Письмо с ссылкой на восстановление пароля отправлено!"})
 }
 
+func confirmRecoveryTokenHandler(w http.ResponseWriter, r *http.Request) {
+    var requestData struct {
+        RecoveryToken string `json:"recovery_token"`
+    }
+
+    // Декодируем JSON-данные из запроса
+    if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil || requestData.RecoveryToken == "" {
+        http.Error(w, "NoRecoveryToken", http.StatusBadRequest)
+        return
+    }
+
+    // Проверяем наличие токена в базе данных
+    var user User
+    err := db.QueryRow("SELECT login FROM users WHERE recovery_token = $1 AND recovery_token_del_time > NOW()", requestData.RecoveryToken).Scan(&user.Login)
+
+    if err != nil {
+        if err == sql.ErrNoRows {
+            // Если токен не найден, возвращаем ответ с успехом false
+            json.NewEncoder(w).Encode(map[string]bool{"success": false})
+            return
+        }
+        http.Error(w, "InternalServerError", http.StatusInternalServerError)
+        return
+    }
+
+    // Если токен действителен, возвращаем ответ с успехом true
+    json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+
+
+func SubmitRecoveryTokenHandler(w http.ResponseWriter, r *http.Request) {
+    var requestBody struct {
+        RecoveryPassword string `json:"RecoveryPassword"`
+        RecoveryToken    string `json:"recovery_token"`
+    }
+
+    // Декодируем JSON-данные из запроса
+    err := json.NewDecoder(r.Body).Decode(&requestBody)
+    if err != nil || requestBody.RecoveryToken == "" || requestBody.RecoveryPassword == "" {
+        http.Error(w, "Bad request", http.StatusBadRequest)
+        return
+    }
+
+    // Проверяем сложность пароля
+    if !isPasswordStrong(requestBody.RecoveryPassword) {
+        http.Error(w, "PasswordIsTooWeak", http.StatusBadRequest)
+        return
+    }
+
+    // Проверяем, существует ли пользователь по токену
+    var user User
+    err = db.QueryRow("SELECT login FROM users WHERE recovery_token = $1", requestBody.RecoveryToken).Scan(&user.Login)
+    if err == sql.ErrNoRows {
+        http.Error(w, "User  NotFound", http.StatusNotFound)
+        return
+    } else if err != nil {
+        http.Error(w, "InternalServerError", http.StatusInternalServerError)
+        return
+    }
+
+    // Хэшируем новый пароль
+    hashedPassword, err := hashPassword(requestBody.RecoveryPassword)
+    if err != nil {
+        http.Error(w, "InternalServerError", http.StatusInternalServerError)
+        return
+    }
+
+    // Обновляем пароль в базе данных
+    _, err = db.Exec("UPDATE users SET password = $1 WHERE recovery_token = $2", hashedPassword, requestBody.RecoveryToken)
+    if err != nil {
+        http.Error(w, "InternalServerError", http.StatusInternalServerError)
+        return
+    }
+
+    // Обнуляем токен и время удаления токена
+    _, err = db.Exec("UPDATE users SET recovery_token = NULL, recovery_token_del_time = NULL WHERE recovery_token = $1", requestBody.RecoveryToken)
+    if err != nil {
+        http.Error(w, "InternalServerError", http.StatusInternalServerError)
+        return
+    }
+
+    // Возвращаем успешный ответ
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]string{"message": "Пароль успешно изменен!"})
+}
+
+
 func main() {
 	initDB()
 	defer db.Close()
@@ -354,11 +438,12 @@ func main() {
 		http.Redirect(w, r, "/public/CoinTracker.html", http.StatusFound)
 	})
 
-	http.HandleFunc("/api/checkToken", checkTokenHandler)
-	http.HandleFunc("/api/confirmToken", confirmTokenHandler)
+	http.HandleFunc("/api/checkToken", handleCheckToken)
 	http.HandleFunc("/SignUp", registerHandler)
 	http.HandleFunc("/LogIn", logInHandler)
 	http.HandleFunc("/Recovery", recoveryHandler)
+	http.HandleFunc("/api/confirmRecoveryToken", confirmRecoveryTokenHandler)
+	http.HandleFunc("/api/SubmitRecovery", SubmitRecoveryTokenHandler)
 
 	go cleanUpExpiredTokens()
 
