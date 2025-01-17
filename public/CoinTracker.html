@@ -109,11 +109,16 @@
                             <input id="LogInEmail" required>
                             <label for="password">Пароль</label>
                             <input type="password" id="LogInPassword" required>
+                            <label style="width:fit-content">
+                                <input type="checkbox" id="rememberMe">
+                                Запомнить меня
+                            </label>
                             <button type="submit">Войти</button>
                             <a href="#" @click.prevent="openCapchaModal">Забыли пароль?</a>
                         </form>
                     </div>
                 </div>
+                
                 
 
                 <div v-if="isCapchaModalOpen" class="modal-capcha" @click="closeCapchaModal"> 

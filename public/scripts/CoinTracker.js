@@ -43,7 +43,29 @@ document.addEventListener('DOMContentLoaded', function() {
             alert("Произошла ошибка при проверке токена.");
             window.location.href = "/public/CoinTracker.html";
         });
-    }    
+    }
+    else{
+        fetch('/api/checkCookie', {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return;
+            }
+        })
+        .then(data => {
+            if (data.success) {
+                window.location.href = "/public/User.html";
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка:", error);
+            alert("Произошла ошибка при проверке куки.");
+        });
+    }
 });
 
 
@@ -106,6 +128,8 @@ new Vue({
                         } else if (text.includes('UserAlreadyExistsWithLogin')) {
                             return this.showNotification('Это имя пользователя уже занято', 'error');
                         } else if (text.includes('Bad request')) {
+                            return this.showNotification('Ошибка базы данных. Попробуйте позже.', 'error');
+                        } else if (text.includes('InternalServerError')) {
                             return this.showNotification('Ошибка сервера. Попробуйте позже.', 'error');
                         } else {
                             return this.showNotification('Неизвестная ошибка. Попробуйте снова.', 'error');
@@ -141,6 +165,7 @@ new Vue({
         submitLogInForm() {
             const login = document.getElementById('LogInEmail').value;
             const password = document.getElementById('LogInPassword').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
         
             fetch('/LogIn', {
                 method: 'POST',
@@ -150,6 +175,7 @@ new Vue({
                 body: JSON.stringify({
                     login: login,
                     password: password,
+                    rememberMe: rememberMe,
                 }),
             })
             .then(response => {

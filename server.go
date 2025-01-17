@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 type User struct {
@@ -25,6 +25,8 @@ type User struct {
 	SignUpTokenDelTime *time.Time  `json:"sign_up_token_del_time"`
 	RecoveryToken      *string    `json:"recovery_token"`
 	RecoveryTokenDelTime *time.Time `json:"recovery_token_del_time"`
+	CookieList         []string   `json:"cookie_list"`
+	RememberMe           bool   `json:"rememberMe"`
 }
 
 var db *sql.DB
@@ -106,6 +108,11 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hashedPassword, err := hashPassword(user.Password)
+	if err != nil {
+		log.Println("Ошибка при хэшировании пароля:", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 	user.Password = hashedPassword
 
 	signUpToken := generateSignUpToken()
@@ -113,13 +120,12 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	t := time.Now().Add(time.Hour)
 	user.SignUpTokenDelTime = &t
 
-	// Устанавливаем RecoveryToken и RecoveryTokenDelTime в nil
 	user.RecoveryToken = nil
 	user.RecoveryTokenDelTime = nil
-
-	user.TelegramID = nil // Устанавливаем TelegramID в nil
+	user.TelegramID = nil
 	user.IsBanned = false
 	user.IsAdmin = false
+	user.CookieList = []string{}
 
 	var existingUser  User
 	err = db.QueryRow("SELECT login, email, sign_up_token FROM users WHERE email = $1", user.Email).Scan(&existingUser .Login, &existingUser .Email, &existingUser .SignUpToken)
@@ -130,17 +136,26 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "UserAlreadyExistsWithEmailAndHasToken", http.StatusConflict)
 		}
 		return
+	} else if err != sql.ErrNoRows {
+		log.Println("Ошибка при проверке существующего пользователя по email:", err)
+		http.Error(w, "InternalServerError", http.StatusInternalServerError)
+		return
 	}
 
 	err = db.QueryRow("SELECT login, email, sign_up_token FROM users WHERE login = $1", user.Login).Scan(&existingUser .Login, &existingUser .Email, &existingUser .SignUpToken)
 	if err == nil {
 		http.Error(w, "UserAlreadyExistsWithLogin", http.StatusConflict)
 		return
+	} else if err != sql.ErrNoRows {
+		log.Println("Ошибка при проверке существующего пользователя по логину:", err)
+		http.Error(w, "InternalServerError", http.StatusInternalServerError)
+		return
 	}
 
-	_, err = db.Exec("INSERT INTO users (login, email, password, telegram_id, is_banned, is_admin, sign_up_token, sign_up_token_del_time, recovery_token, recovery_token_del_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-		user.Login, user.Email, user.Password, user.TelegramID, user.IsBanned, user.IsAdmin, user.SignUpToken, user.SignUpTokenDelTime, user.RecoveryToken, user.RecoveryTokenDelTime)
+	_, err = db.Exec("INSERT INTO users (login, email, password, telegram_id, is_banned, is_admin, sign_up_token, sign_up_token_del_time, recovery_token, recovery_token_del_time, cookie_list) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+		user.Login, user.Email, user.Password, user.TelegramID, user.IsBanned, user.IsAdmin, user.SignUpToken, user.SignUpTokenDelTime, user.RecoveryToken, user.RecoveryTokenDelTime, pq.Array(user.CookieList))
 	if err != nil {
+		log.Println("Ошибка при вставке пользователя в базу данных:", err)
 		http.Error(w, "UserAlreadySignUp", http.StatusInternalServerError)
 		return
 	}
@@ -153,8 +168,9 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
+	json.NewEncoder(w).Encode(map[string]string{"message": "User  registered successfully"})
 }
+
 
 func cleanUpExpiredTokens() {
 	for {
@@ -260,6 +276,26 @@ func logInHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "InvalidCredentials", http.StatusUnauthorized)
 		return
 	}
+	rememberMe := user.RememberMe
+	var cookieToken string
+    if rememberMe {
+        cookieToken = generateSignUpToken() // Функция для генерации токена
+        // Добавьте токен в базу данных в CookieList
+        _, err = db.Exec("UPDATE users SET cookie_list = array_append(cookie_list, $1) WHERE email = $2 OR login = $3", cookieToken, storedUser .Email, storedUser .Login)
+        if err != nil {
+            http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+            return
+        }
+
+        // Установите куки в ответе
+        http.SetCookie(w, &http.Cookie{
+			Name:     "rememberMeToken",
+			Value:    cookieToken,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true, 
+		})
+    }
 
 	// Если токен пустой, пропускаем пользователя
 	w.WriteHeader(http.StatusOK)

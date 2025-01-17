@@ -457,7 +457,7 @@ footer {
     }
 }
 
-@media screen and (max-width: 745px) {
+@media screen and (max-width: 748px) {
     h2{
         font-size: 1.4em;
     }
@@ -470,6 +470,9 @@ footer {
         display: none;
     }
 
+    nav{
+        display: grid;
+    }
     .menu-button {
         display: block;
     }
