@@ -15,7 +15,7 @@
                 <div class="logo">CoinTracker</div>
                 <nav class="buttons">
                     <a class="themeToggle">Сменить тему</a>
-                    <a href="/public/CoinTracker.html">Выход</a>
+                    <a href="#" @click.prevent="openExitModal">Выход</a>
                     <a href="#">Профиль</a>
                 </nav>
                 <a id="menuToggle" class="menu-button">Меню</a>
@@ -25,14 +25,28 @@
         <aside id="sidebar" class="sidebar">
             <nav>
                 <a class="themeToggle">Сменить тему</a>
-                <a href="/public/CoinTracker.html">Выход</a>
+                <a href="#" @click.prevent="openExitModal">Выход</a>
                 <a href="#">Профиль</a>
             </nav>
         </aside>
         <div id="notifications" class="notifications"></div>
         <main>
             <div class="recovery-section">
+                <div id="coinsList">
+                    <h3>Ваши монеты:</h3>
+                    <ul id="coins"></ul>    
+                </div>                
+            </div>
 
+            <div v-if="isExitModalOpen" class="modal" @click="closeExitModal"> 
+                <div class="modal-content" @click.stop>
+                    <span class="close" @click="closeExitModal">&times;</span>
+                    <h2>Выход</h2>
+                    <form id="ExitForm" @submit.prevent="submitExitForm">
+                        <p>Вы действительно хотите выйти?</p>
+                        <button type="submit">Подтвердить</button>
+                    </form>
+                </div>
             </div>
         </main>
         <footer>

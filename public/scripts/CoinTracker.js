@@ -32,7 +32,6 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             if (data.success) {
-                window.location.href = "/public/User.html";
             } else {
                 alert("Токен просрочен или недействителен.");
                 window.location.href = "/public/CoinTracker.html"; 
@@ -45,26 +44,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     else{
-        fetch('/api/checkCookie', {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json"
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                return;
-            }
-        })
-        .then(data => {
-            if (data.success) {
-                window.location.href = "/public/User.html";
-            }
-        })
-        .catch(error => {
-            console.error("Ошибка:", error);
-            alert("Произошла ошибка при проверке куки.");
-        });
+            fetch('/api/checkCookie')
+            .then(response => {
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    window.location.href = "/public/User.html";
+                }
+            })
+            .catch(error => {
+                console.error('There was a problem with the fetch operation:', error);
+            });
     }
 });
 
@@ -202,8 +193,8 @@ new Vue({
                 } else {
                     this.showNotification('Вход выполнен успешно!', 'success');
                     this.closeLogInModal();
-                    window.location.href = '/public/User.html';
-                }
+                            window.location.href = '/public/User.html'; // Перенаправляем на страницу пользователя
+                    }
             })
             .catch((error) => {
                 console.error('Ошибка:', error);

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 	"github.com/lib/pq"
 )
@@ -26,10 +27,12 @@ type User struct {
 	RecoveryToken      *string    `json:"recovery_token"`
 	RecoveryTokenDelTime *time.Time `json:"recovery_token_del_time"`
 	CookieList         []string   `json:"cookie_list"`
-	RememberMe           bool   `json:"rememberMe"`
+	CoinsList		   []string   `json:"coins_list"`
+	RememberMe         bool   `json:"rememberMe"`
 }
 
 var db *sql.DB
+var store = sessions.NewCookieStore([]byte("secret-key")) // Замените на свой секретный ключ
 
 func initDB() {
 	var err error
@@ -126,6 +129,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	user.IsBanned = false
 	user.IsAdmin = false
 	user.CookieList = []string{}
+	user.CoinsList = []string{}
 
 	var existingUser  User
 	err = db.QueryRow("SELECT login, email, sign_up_token FROM users WHERE email = $1", user.Email).Scan(&existingUser .Login, &existingUser .Email, &existingUser .SignUpToken)
@@ -152,8 +156,8 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("INSERT INTO users (login, email, password, telegram_id, is_banned, is_admin, sign_up_token, sign_up_token_del_time, recovery_token, recovery_token_del_time, cookie_list) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
-		user.Login, user.Email, user.Password, user.TelegramID, user.IsBanned, user.IsAdmin, user.SignUpToken, user.SignUpTokenDelTime, user.RecoveryToken, user.RecoveryTokenDelTime, pq.Array(user.CookieList))
+	_, err = db.Exec("INSERT INTO users (login, email, password, telegram_id, is_banned, is_admin, sign_up_token, sign_up_token_del_time, recovery_token, recovery_token_del_time, cookie_list, coins_list) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+	user.Login, user.Email, user.Password, user.TelegramID, user.IsBanned, user.IsAdmin, user.SignUpToken, user.SignUpTokenDelTime, user.RecoveryToken, user.RecoveryTokenDelTime, pq.Array(user.CookieList), pq.Array(user.CoinsList))
 	if err != nil {
 		log.Println("Ошибка при вставке пользователя в базу данных:", err)
 		http.Error(w, "UserAlreadySignUp", http.StatusInternalServerError)
@@ -226,81 +230,6 @@ func handleCheckToken(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
-
-func logInHandler(w http.ResponseWriter, r *http.Request) {
-	var user User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	var storedUser  User
-	var query string
-	if isEmail(user.Login) {
-		query = "SELECT login, email, password, is_banned, is_admin, sign_up_token, sign_up_token_del_time, recovery_token, recovery_token_del_time FROM users WHERE email = $1"
-		err = db.QueryRow(query, user.Login).Scan(&storedUser .Login, &storedUser .Email, &storedUser .Password, &storedUser .IsBanned, &storedUser .IsAdmin, &storedUser .SignUpToken, &storedUser .SignUpTokenDelTime, &storedUser .RecoveryToken, &storedUser .RecoveryTokenDelTime)
-	} else {
-		query = "SELECT login, email, password, is_banned, is_admin, sign_up_token, sign_up_token_del_time, recovery_token, recovery_token_del_time FROM users WHERE login = $1"
-		err = db.QueryRow(query, user.Login).Scan(&storedUser .Login, &storedUser .Email, &storedUser .Password, &storedUser .IsBanned, &storedUser .IsAdmin, &storedUser .SignUpToken, &storedUser .SignUpTokenDelTime, &storedUser .RecoveryToken, &storedUser .RecoveryTokenDelTime)
-	}
-	
-	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "UserNotFound", http.StatusUnauthorized)
-			return
-		}
-		fmt.Println(err)
-		http.Error(w, "InternalServerError", http.StatusInternalServerError)
-		return
-	}
-
-	// Проверка на наличие токена
-	if storedUser .SignUpToken != nil && *storedUser .SignUpToken != "" && storedUser .SignUpTokenDelTime != nil {
-		http.Error(w, "UserHasToken", http.StatusForbidden)
-		return
-	}
-
-	if storedUser .RecoveryToken != nil && *storedUser .RecoveryToken != "" && storedUser .RecoveryTokenDelTime != nil {
-		http.Error(w, "UserHasRecoveryToken", http.StatusForbidden)
-		return
-	}
-
-	if storedUser .IsBanned {
-		http.Error(w, "UserIsBanned", http.StatusForbidden)
-		return
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(storedUser .Password), []byte(user.Password))
-	if err != nil {
-		http.Error(w, "InvalidCredentials", http.StatusUnauthorized)
-		return
-	}
-	rememberMe := user.RememberMe
-	var cookieToken string
-    if rememberMe {
-        cookieToken = generateSignUpToken() // Функция для генерации токена
-        // Добавьте токен в базу данных в CookieList
-        _, err = db.Exec("UPDATE users SET cookie_list = array_append(cookie_list, $1) WHERE email = $2 OR login = $3", cookieToken, storedUser .Email, storedUser .Login)
-        if err != nil {
-            http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-            return
-        }
-
-        // Установите куки в ответе
-        http.SetCookie(w, &http.Cookie{
-			Name:     "rememberMeToken",
-			Value:    cookieToken,
-			Path:     "/",
-			HttpOnly: true,
-			Secure:   true, 
-		})
-    }
-
-	// Если токен пустой, пропускаем пользователя
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
-}
 
 func isEmail(input string) bool {
 	return strings.Contains(input, "@") && strings.Contains(input, ".")
@@ -463,6 +392,209 @@ func SubmitRecoveryTokenHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(map[string]string{"message": "Пароль успешно изменен!"})
 }
 
+func logInHandler(w http.ResponseWriter, r *http.Request) {
+	var user User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	var storedUser  User
+	var query string
+	if isEmail(user.Login) {
+		query = "SELECT login, email, password, is_banned, is_admin, sign_up_token, sign_up_token_del_time, recovery_token, recovery_token_del_time FROM users WHERE email = $1"
+		err = db.QueryRow(query, user.Login).Scan(&storedUser .Login, &storedUser .Email, &storedUser .Password, &storedUser .IsBanned, &storedUser .IsAdmin, &storedUser .SignUpToken, &storedUser .SignUpTokenDelTime, &storedUser .RecoveryToken, &storedUser .RecoveryTokenDelTime)
+	} else {
+		query = "SELECT login, email, password, is_banned, is_admin, sign_up_token, sign_up_token_del_time, recovery_token, recovery_token_del_time FROM users WHERE login = $1"
+		err = db.QueryRow(query, user.Login).Scan(&storedUser .Login, &storedUser .Email, &storedUser .Password, &storedUser .IsBanned, &storedUser .IsAdmin, &storedUser .SignUpToken, &storedUser .SignUpTokenDelTime, &storedUser .RecoveryToken, &storedUser .RecoveryTokenDelTime)
+	}
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "UserNotFound", http.StatusUnauthorized)
+			return
+		}
+		fmt.Println(err)
+		http.Error(w, "InternalServerError", http.StatusInternalServerError)
+		return
+	}
+
+	// Проверка на наличие токена
+	if storedUser .SignUpToken != nil && *storedUser .SignUpToken != "" && storedUser .SignUpTokenDelTime != nil {
+		http.Error(w, "UserHasToken", http.StatusForbidden)
+		return
+	}
+
+	if storedUser .RecoveryToken != nil && *storedUser .RecoveryToken != "" && storedUser .RecoveryTokenDelTime != nil {
+		http.Error(w, "UserHasRecoveryToken", http.StatusForbidden)
+		return
+	}
+
+	if storedUser .IsBanned {
+		http.Error(w, "UserIsBanned", http.StatusForbidden)
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(storedUser .Password), []byte(user.Password))
+	if err != nil {
+		http.Error(w, "InvalidCredentials", http.StatusUnauthorized)
+		return
+	}
+
+	session, _ := store.Get(r, "session-name")
+    session.Values["authenticated"] = true
+    session.Values["userLogin"] = storedUser .Login
+    session.Save(r, w)
+
+	// var cookieToken string
+    if user.RememberMe {
+        cookieToken := generateSignUpToken()
+        _, err = db.Exec("UPDATE users SET cookie_list = array_append(cookie_list, $1) WHERE email = $2 OR login = $3", cookieToken, storedUser .Email, storedUser .Login)
+        if err != nil {
+            http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+            return
+        }
+
+        // Установите куки в ответе
+        http.SetCookie(w, &http.Cookie{
+			Name:     "rememberMeToken",
+			Value:    cookieToken,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true, 
+		})
+    }
+
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
+}
+
+
+func handleCheckCookie(w http.ResponseWriter, r *http.Request) {
+    cookie, err := r.Cookie("rememberMeToken")
+    if err != nil {
+        if err == http.ErrNoCookie {
+            json.NewEncoder(w).Encode(map[string]interface{}{"success": false})
+            return
+        }
+        http.Error(w, "InternalServerError", http.StatusInternalServerError)
+        return
+    }
+
+    token := cookie.Value
+
+    var user User
+    err = db.QueryRow("SELECT login, email FROM users WHERE $1 = ANY(cookie_list)", token).Scan(&user.Login, &user.Email)
+
+    if err != nil {
+        if err == sql.ErrNoRows {
+            json.NewEncoder(w).Encode(map[string]interface{}{"success": false})
+            return
+        }
+        http.Error(w, "InternalServerError", http.StatusInternalServerError)
+        return
+    }
+
+    json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+}
+
+
+func handleAuthentication(w http.ResponseWriter, r *http.Request) {
+    // Проверяем куки
+    cookie, err := r.Cookie("rememberMeToken")
+    if err == nil {
+        token := cookie.Value
+        var user User
+        err = db.QueryRow("SELECT login, email FROM users WHERE $1 = ANY(cookie_list)", token).Scan(&user.Login, &user.Email)
+
+        if err == nil {
+            // Получаем список монет для пользователя
+            var coinsList []string
+            err = db.QueryRow("SELECT coins_list FROM users WHERE login = $1", user.Login).Scan(pq.Array(&coinsList))
+            if err == nil {
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                    "success": true,
+                    "login":   user.Login,
+                    "email":   user.Email,
+                    "coins":   coinsList,
+                })
+                return
+            }
+        }
+    }
+
+    // Проверяем сессию
+    session, err := store.Get(r, "session-name")
+    if err == nil && session.Values["authenticated"] != nil {
+        login := session.Values["userLogin"].(string)
+
+        var coinsList []string
+        err = db.QueryRow("SELECT coins_list FROM users WHERE login = $1", login).Scan(pq.Array(&coinsList))
+        if err == nil {
+            json.NewEncoder(w).Encode(map[string]interface{}{
+                "success": true,
+                "login":   login,
+                "coins":   coinsList,
+            })
+            return
+        }
+    }
+
+    // Если ни один из методов аутентификации не удался
+    json.NewEncoder(w).Encode(map[string]interface{}{"success": false})
+}
+
+func logoutHandler(w http.ResponseWriter, r *http.Request) {
+    // Получаем токен куки
+    cookie, err := r.Cookie("rememberMeToken")
+    
+    // Проверяем, есть ли куки. Если нет, просто продолжаем выполнение.
+    if err != nil {
+        // Куки нет, просто продолжаем
+    } else {
+        token := cookie.Value
+
+        // Удаляем куки из ответа
+        http.SetCookie(w, &http.Cookie{
+            Name:     "rememberMeToken",
+            Value:    "",
+            Path:     "/",
+            HttpOnly: true,
+            Secure:   true,
+            MaxAge:   -1, // Устанавливаем MaxAge в -1 для удаления куки
+        })
+
+        // Проверяем, существует ли токен в базе данных
+        var exists bool
+        err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE $1 = ANY(cookie_list))", token).Scan(&exists)
+        if err != nil {
+            http.Error(w, "Failed to check cookie existence in database", http.StatusInternalServerError)
+            return
+        }
+
+        // Если токен существует, удаляем его из базы данных
+        if exists {
+            _, err = db.Exec("UPDATE users SET cookie_list = array_remove(cookie_list, $1) WHERE $1 = ANY(cookie_list)", token)
+            if err != nil {
+                http.Error(w, "Failed to remove cookie from database", http.StatusInternalServerError)
+                return
+            }
+        }
+    }
+
+    // Завершаем сессию
+    session, _ := store.Get(r, "session-name")
+    session.Values["authenticated"] = false
+    session.Values["userLogin"] = ""
+    session.Save(r, w)
+
+    // Возвращаем успешный ответ
+    json.NewEncoder(w).Encode(map[string]string{"message": "Logout successful"})
+}
+
+
+
 
 func main() {
 	initDB()
@@ -480,6 +612,9 @@ func main() {
 	http.HandleFunc("/Recovery", recoveryHandler)
 	http.HandleFunc("/api/confirmRecoveryToken", confirmRecoveryTokenHandler)
 	http.HandleFunc("/api/SubmitRecovery", SubmitRecoveryTokenHandler)
+	http.HandleFunc("/api/checkCookie", handleCheckCookie)
+	http.HandleFunc("/api/authenticate", handleAuthentication)
+	http.HandleFunc("/api/logout", logoutHandler)
 
 	go cleanUpExpiredTokens()
 
