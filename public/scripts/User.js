@@ -49,6 +49,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+const channel = new BroadcastChannel('auth_channel');
+
+channel.onmessage = (event) => {
+    if (event.data === 'logout') {
+        window.location.href = '/public/CoinTracker.html';
+    }
+};
 
 new Vue({
     el: '#app',
@@ -65,6 +72,7 @@ new Vue({
             })
             .then(response => {
                 if (response.ok) {
+                    channel.postMessage('logout');
                     window.location.href = '/public/CoinTracker.html'; // Перенаправление на главную страницу
                 } else {
                     console.error("Ошибка при выходе:", response.statusText);

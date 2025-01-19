@@ -593,6 +593,18 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(map[string]string{"message": "Logout successful"})
 }
 
+func userPageHandler(w http.ResponseWriter, r *http.Request) {
+    // Проверяем аутентификацию
+    session, err := store.Get(r, "session-name")
+    if err != nil || session.Values["authenticated"] == nil || session.Values["authenticated"] == false {
+        // Если пользователь не аутентифицирован, перенаправляем его на главную страницу
+        http.Redirect(w, r, "/public/CoinTracker.html", http.StatusFound)
+        return
+    }
+
+    // Если аутентифицирован, отображаем страницу пользователя
+    http.ServeFile(w, r, "./public/User.html")
+}
 
 
 
@@ -600,7 +612,11 @@ func main() {
 	initDB()
 	defer db.Close()
 
+	// http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
+
+	http.HandleFunc("/public/User.html", userPageHandler) // Обработчик для страницы пользователя
 	http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
+
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/public/CoinTracker.html", http.StatusFound)
