@@ -506,44 +506,55 @@ func handleAuthentication(w http.ResponseWriter, r *http.Request) {
     if err == nil {
         token := cookie.Value
         var user User
-        err = db.QueryRow("SELECT login, email FROM users WHERE $1 = ANY(cookie_list)", token).Scan(&user.Login, &user.Email)
+        err = db.QueryRow("SELECT login, email, is_admin, telegram_id, coins_list FROM users WHERE $1 = ANY(cookie_list)", token).Scan(&user.Login, &user.Email, &user.IsAdmin, &user.TelegramID, pq.Array(&user.CoinsList))
 
-        if err == nil {
-            // Получаем список монет для пользователя
-            var coinsList []string
-            err = db.QueryRow("SELECT coins_list FROM users WHERE login = $1", user.Login).Scan(pq.Array(&coinsList))
-            if err == nil {
-                json.NewEncoder(w).Encode(map[string]interface{}{
-                    "success": true,
-                    "login":   user.Login,
-                    "email":   user.Email,
-                    "coins":   coinsList,
-                })
-                return
-            }
-        }
-    }
-
-    // Проверяем сессию
-    session, err := store.Get(r, "session-name")
-    if err == nil && session.Values["authenticated"] != nil {
-        login := session.Values["userLogin"].(string)
-
-        var coinsList []string
-        err = db.QueryRow("SELECT coins_list FROM users WHERE login = $1", login).Scan(pq.Array(&coinsList))
         if err == nil {
             json.NewEncoder(w).Encode(map[string]interface{}{
                 "success": true,
-                "login":   login,
-                "coins":   coinsList,
+                "login":   user.Login,
+                "email":   user.Email,
+                "is_admin": user.IsAdmin,
+                "telegram_id": user.TelegramID,
+                "coins":   user.CoinsList,
             })
             return
         }
     }
 
-    // Если ни один из методов аутентификации не удался
+    // Проверяем сессию
+	session, err := store.Get(r, "session-name")
+    if err == nil && session.Values["authenticated"] != nil {
+        login := session.Values["userLogin"].(string)
+
+        var coinsList []string
+        var isAdmin bool
+        var telegramID sql.NullString 
+		var email string
+        err = db.QueryRow("SELECT coins_list, email, is_admin, telegram_id FROM users WHERE login = $1", login).Scan(pq.Array(&coinsList), &email, &isAdmin, &telegramID)
+        if err == nil {
+            response := map[string]interface{}{
+                "success": true,
+                "login":   login,
+				"email": email,
+                "is_admin": isAdmin,
+                "telegram_id": "",
+                "coins":   coinsList,
+            }
+
+            if telegramID.Valid {
+                response["telegram_id"] = telegramID.String
+            }
+
+            json.NewEncoder(w).Encode(response)
+            return
+        }
+    }
+
+    // Если аутентификация не удалась
     json.NewEncoder(w).Encode(map[string]interface{}{"success": false})
 }
+
+
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
     // Получаем токен куки
@@ -606,7 +617,31 @@ func userPageHandler(w http.ResponseWriter, r *http.Request) {
     http.ServeFile(w, r, "./public/User.html")
 }
 
+func adminPageHandler(w http.ResponseWriter, r *http.Request) {
+    // Проверяем аутентификацию
+    session, err := store.Get(r, "session-name")
+    if err != nil || session.Values["authenticated"] == nil || session.Values["authenticated"] == false {
+        // Если пользователь не аутентифицирован, перенаправляем его на главную страницу
+        http.Redirect(w, r, "/public/CoinTracker.html", http.StatusFound)
+        return
+    }
 
+    // Если аутентифицирован, отображаем страницу пользователя
+    http.ServeFile(w, r, "./public/Admin.html")
+}
+
+func profilePageHandler(w http.ResponseWriter, r *http.Request) {
+    // Проверяем аутентификацию
+    session, err := store.Get(r, "session-name")
+    if err != nil || session.Values["authenticated"] == nil || session.Values["authenticated"] == false {
+        // Если пользователь не аутентифицирован, перенаправляем его на главную страницу
+        http.Redirect(w, r, "/public/CoinTracker.html", http.StatusFound)
+        return
+    }
+
+    // Если аутентифицирован, отображаем страницу пользователя
+    http.ServeFile(w, r, "./public/Profile.html")
+}
 
 func main() {
 	initDB()
@@ -614,7 +649,9 @@ func main() {
 
 	// http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 
-	http.HandleFunc("/public/User.html", userPageHandler) // Обработчик для страницы пользователя
+	http.HandleFunc("/public/User.html", userPageHandler)
+	http.HandleFunc("/public/Admin.html", adminPageHandler)
+	http.HandleFunc("/public/Profile.html", profilePageHandler)
 	http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 
 

@@ -73,6 +73,9 @@ header {
     transform: translateX(0);
     pointer-events: auto;
 }
+#adminPanelLink {
+    display: none; 
+}
 
 .modal, .modal-capcha {
     background-color: rgba(0, 0, 0, 0.4);

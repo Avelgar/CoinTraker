@@ -30,29 +30,21 @@
         <div id="notifications" class="notifications"></div>
         <main>
             <div class="recovery-section" style="display: grid;">
-                <div id="coinsList">
-                    <h3>Ваши монеты:</h3>
-                    <ul id="coins"></ul>    
-                </div>
-                <button class="learn-more-button" style="height:fit-content">Заблокировать пользователя</button>
-            </div>
-
-            <div v-if="isExitModalOpen" class="modal" @click="closeExitModal"> 
-                <div class="modal-content" @click.stop>
-                    <span class="close" @click="closeExitModal">&times;</span>
-                    <h2>Выход</h2>
-                    <form id="ExitForm" @submit.prevent="submitExitForm">
-                        <p>Вы действительно хотите выйти?</p>
-                        <button type="submit">Подтвердить</button>
-                    </form>
-                </div>
+                <label for="login">Логин:</label>
+                <input class="modal-content input" type="text" id="login" disabled>
+        
+                <label for="email">Почта:</label>
+                <input class="modal-content input" type="email" id="email" disabled>
+        
+                <label for="telegram_id">Telegram ID:</label>
+                <input class="modal-content input" type="text" id="telegram_id">
             </div>
         </main>
         <footer>
             <p>&copy; 2024 CoinTracker. Все права защищены.</p>
         </footer>
     </div>
-    <script src="scripts/Admin.js"></script>
+    <script src="scripts/Profile.js"></script>
     <script src="scripts/theme.js"></script>
 </body>
 </html>

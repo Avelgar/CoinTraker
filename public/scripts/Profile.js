@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(data => {
                 if (data && data.success) {
-                    displayCoins(data.coins);
+                    displayData(data);
                 }
             })
             .catch(error => {
@@ -37,15 +37,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    function displayCoins(coins) {
-        const coinsListElement = document.getElementById('coins'); // Предполагаем, что у вас есть элемент с id 'coins'
-        coinsListElement.innerHTML = ''; // Очищаем предыдущий список
-
-        coins.forEach(coin => {
-            const listItem = document.createElement('li');
-            listItem.textContent = coin; // Добавляем название монеты
-            coinsListElement.appendChild(listItem);
-        });
+    function displayData(data) {
+        document.getElementById('login').value = data.login || ''; 
+        document.getElementById('email').value = data.email || ''; 
+        document.getElementById('telegram_id').value = data.telegram_id || ''; 
     }
+    
 });
 

@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Переключение бокового меню
     document.getElementById('menuToggle').addEventListener('click', function() {
         const sidebar = document.getElementById('sidebar');
         sidebar.classList.toggle('active');
@@ -19,7 +18,6 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/api/authenticate')
             .then(response => {
                 if (!response.ok) {
-                    // Если пользователь не аутентифицирован, перенаправляем на главную страницу
                     window.location.href = '/public/CoinTracker.html';
                     return;
                 }
@@ -28,14 +26,19 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data && data.success) {
                     displayCoins(data.coins);
+                    if (data.is_admin) {
+                        document.getElementById('adminPanelLink').style.display = 'contents';
+                    }
+                } else {
+                    // Если success: false, но пользователь уже аутентифицирован, не перенаправляем
+                    console.warn("Аутентификация не удалась, но пользователь может быть уже в системе.");
                 }
             })
             .catch(error => {
                 console.error("Ошибка при проверке аутентификации:", error);
-                // В случае ошибки также перенаправляем на главную страницу
                 window.location.href = '/public/CoinTracker.html';
             });
-    }
+    }    
 
     function displayCoins(coins) {
         const coinsListElement = document.getElementById('coins'); // Предполагаем, что у вас есть элемент с id 'coins'
